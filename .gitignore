@@ -43,3 +43,4 @@ logs/
 # Coverage
 .coverage
 coverage.xml
+logs
