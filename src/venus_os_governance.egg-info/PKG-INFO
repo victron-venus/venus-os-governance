@@ -1,0 +1,29 @@
+Metadata-Version: 2.1
+Name: venus-os-governance
+Version: 0.1.0
+Summary: Policy engine with approval gates for Venus OS - SOC limits, charge/discharge rules, inverter control policies with audit logging via dbus-event-log
+License: MIT
+Project-URL: Homepage, https://github.com/victron-venus/venus-os-governance
+Project-URL: Repository, https://github.com/victron-venus/venus-os-governance
+Project-URL: Issues, https://github.com/victron-venus/venus-os-governance/issues
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.8
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: dbus-next>=0.2
+Requires-Dist: paho-mqtt>=2.0
+Requires-Dist: sqlite-utils>=3.37
+Requires-Dist: click>=8.1
+Requires-Dist: rich>=13.7
+Requires-Dist: jsonschema>=4.22
+Provides-Extra: dev
+Requires-Dist: pytest>=8.2; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: pytest-cov>=4.1; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"
+Requires-Dist: pre-commit>=3.7; extra == "dev"
+Provides-Extra: test
+Requires-Dist: pytest>=8.2; extra == "test"
+Requires-Dist: pytest-asyncio>=0.23; extra == "test"
+Requires-Dist: pytest-cov>=4.1; extra == "test"
