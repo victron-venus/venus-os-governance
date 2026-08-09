@@ -235,7 +235,15 @@ def init(ctx: click.Context) -> None:
     default="idle",
 )
 @click.pass_context
-def evaluate(ctx: click.Context, action: str, soc: float, voltage: float, current: float, power: float, status: str) -> None:
+def evaluate(
+    ctx: click.Context,
+    action: str,
+    soc: float,
+    voltage: float,
+    current: float,
+    power: float,
+    status: str,
+) -> None:
     """Evaluate a policy for a given action and battery state."""
     _ = ctx
     params = EvaluateParams(
