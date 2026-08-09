@@ -118,17 +118,16 @@ rules:
 
 ## Architecture
 
-```
-┌─────────────────┐     ┌──────────────┐     ┌────────────────────┐
-│   D-Bus/Victron │────▶│ Policy Engine│────▶│  Approval Manager  │
-│   Battery State │     │  Evaluation  │     │  (Pending/Decide)  │
-└─────────────────┘     └──────────────┘     └────────────────────┘
-                              │
-                              ▼
-                       ┌──────────────┐
-                       │ Event Logger │
-                       │ (SQLite/MQTT)│
-                       └──────────────┘
+```mermaid
+flowchart LR
+    DBUS["D-Bus/Victron\nBattery State"]
+    ENGINE["Policy Engine\nEvaluation"]
+    APPROVAL["Approval Manager\n(Pending/Decide)"]
+    EVENT["Event Logger\n(SQLite/MQTT)"]
+
+    DBUS --> ENGINE
+    ENGINE --> APPROVAL
+    ENGINE --> EVENT
 ```
 
 ## Integration
