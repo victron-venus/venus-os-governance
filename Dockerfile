@@ -1,31 +1,28 @@
 # Venus OS Governance - Dockerfile
 
-FROM python:3.12-slim@sha256:4b7e9f1f8b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8
+# Use digest only (pinned base image for reproducibility)
+FROM python@sha256:4b7e9f1f8b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies and uv in single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     dbus \
+    && pip install --no-cache-dir --only-binary :all: uv \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency management
-RUN pip install --no-cache-dir uv
+# Copy dependency files explicitly (no glob)
+COPY pyproject.toml uv.lock ./
 
-# Copy dependency files
-COPY pyproject.toml uv.lock* ./
-
-# Install dependencies
-RUN uv pip install --system -e .
+# Install dependencies with --only-binary to avoid setup script execution
+RUN uv pip install --system --only-binary :all: -e .
 
 # Copy source code
 COPY src/ ./src/
 
-# Create config directory
-RUN mkdir -p /app/config/policies
-
-# Copy example policy config
-COPY config/policies.yaml.example /app/config/policies/default-safety.yaml
+# Create config directory and copy example policy
+RUN mkdir -p /app/config/policies \
+    && cp config/policies.yaml.example /app/config/policies/default-safety.yaml
 
 # Expose metrics port (if Prometheus metrics are added)
 # EXPOSE 9090

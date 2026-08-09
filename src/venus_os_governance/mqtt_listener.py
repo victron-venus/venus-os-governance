@@ -7,7 +7,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import paho.mqtt.client as mqtt
 
@@ -15,6 +15,9 @@ from .dbus_integration import VenusDBusClient
 from .engine import PolicyEngine
 from .event_logger import EventLogger
 from .models import InverterAction
+
+if TYPE_CHECKING:
+    from .models import BatteryState
 
 logger = logging.getLogger(__name__)
 
@@ -192,48 +195,11 @@ class MQTTListener:
             self._forward_command(command)
             return
 
-        # Get current battery state
-        battery_state_dict = self._latest_battery_state.copy()
-        if not battery_state_dict and self.dbus_client:
-            try:
-                state = await self.dbus_client.get_battery_state()
-                if state:
-                    battery_state_dict = state.model_dump()
-            except Exception as e:
-                logger.warning("Failed to get battery state from D-Bus: %s", e)
-
-        from .models import BatteryState
-
-        battery_state = (
-            BatteryState(**battery_state_dict)
-            if battery_state_dict
-            else BatteryState(soc=50.0, voltage=48.0, current=0.0, power=0.0, status="idle")
-        )
-
-        # Evaluate policy
+        battery_state = await self._get_battery_state()
         context = {"command": command.command, "payload": command.payload}
         result = self.policy_engine.evaluate(inverter_action, battery_state, context)
 
-        # Log evaluation
-        if self.event_logger:
-            log_entry = {
-                "event_type": "command_interception",
-                "policy_id": self.policy_engine._default_policy.id
-                if self.policy_engine._default_policy
-                else "unknown",
-                "inverter_action": inverter_action.value,
-                "battery_soc": battery_state.soc,
-                "battery_status": battery_state.status,
-                "allowed": result.allowed,
-                "policy_action": result.action.value,
-                "approval_required": result.approval_required,
-                "approval_request_id": result.approval_request.id
-                if result.approval_request
-                else None,
-                "details": {"command": command.command, "payload": command.payload},
-                "metadata": context,
-            }
-            self.event_logger.log_event(log_entry)
+        self._log_evaluation(inverter_action, battery_state, result, context)
 
         if result.allowed and not result.approval_required:
             logger.info("Command %s allowed by policy", command.command)
@@ -248,6 +214,53 @@ class MQTTListener:
         else:
             logger.warning("Command %s denied by policy: %s", command.command, result.reason)
             self._send_denial_response(command, result.reason)
+
+    async def _get_battery_state(self) -> "BatteryState":
+        """Get current battery state from cache or D-Bus."""
+        from .models import BatteryState
+
+        battery_state_dict = self._latest_battery_state.copy()
+        if not battery_state_dict and self.dbus_client:
+            try:
+                state = await self.dbus_client.get_battery_state()
+                if state:
+                    battery_state_dict = state.model_dump()
+            except Exception as e:
+                logger.warning("Failed to get battery state from D-Bus: %s", e)
+
+        return (
+            BatteryState(**battery_state_dict)
+            if battery_state_dict
+            else BatteryState(soc=50.0, voltage=48.0, current=0.0, power=0.0, status="idle")
+        )
+
+    def _log_evaluation(
+        self,
+        inverter_action: InverterAction,
+        battery_state: "BatteryState",
+        result,
+        context: dict[str, Any],
+    ) -> None:
+        """Log policy evaluation result."""
+        if not self.event_logger:
+            return
+
+        log_entry = {
+            "event_type": "command_interception",
+            "policy_id": self.policy_engine._default_policy.id
+            if self.policy_engine._default_policy
+            else "unknown",
+            "inverter_action": inverter_action.value,
+            "battery_soc": battery_state.soc,
+            "battery_status": battery_state.status,
+            "allowed": result.allowed,
+            "policy_action": result.action.value,
+            "approval_required": result.approval_required,
+            "approval_request_id": result.approval_request.id if result.approval_request else None,
+            "details": {"command": context["command"], "payload": context["payload"]},
+            "metadata": context,
+        }
+        self.event_logger.log_event(log_entry)
 
     def _forward_command(self, command: InverterCommand) -> None:
         """Forward approved command to inverter-control topic."""
@@ -361,15 +374,17 @@ class GovernanceMQTTDaemon:
 
     async def _monitor_loop(self) -> None:
         """Monitor D-Bus for battery state changes and evaluate policies."""
-        while self._running:
-            try:
-                await self._check_battery_state()
-                await asyncio.sleep(self.config.poll_interval)
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.exception("Monitor loop error: %s", e)
-                await asyncio.sleep(self.config.poll_interval)
+        try:
+            while self._running:
+                try:
+                    await self._check_battery_state()
+                    await asyncio.sleep(self.config.poll_interval)
+                except Exception as e:
+                    logger.exception("Monitor loop error: %s", e)
+                    await asyncio.sleep(self.config.poll_interval)
+        except asyncio.CancelledError:
+            logger.debug("Monitor loop cancelled")
+            raise
 
     async def _check_battery_state(self) -> None:
         """Check battery state and evaluate discharge/charge policies."""
@@ -386,7 +401,7 @@ class GovernanceMQTTDaemon:
                 InverterAction.DISCHARGE,
                 battery_state,
             )
-            await self._handle_policy_result("discharge", result, battery_state)
+            self._handle_policy_result("discharge", result, battery_state)
 
         # Check charge rules
         if battery_state.status == "charging":
@@ -394,7 +409,7 @@ class GovernanceMQTTDaemon:
                 InverterAction.CHARGE,
                 battery_state,
             )
-            await self._handle_policy_result("charge", result, battery_state)
+            self._handle_policy_result("charge", result, battery_state)
 
         # Check critical SOC
         if battery_state.soc <= 10:
@@ -405,7 +420,7 @@ class GovernanceMQTTDaemon:
             if result.action.value == "deny":
                 logger.critical("Critical SOC emergency stop triggered: %s%%", battery_state.soc)
 
-    async def _handle_policy_result(self, action: str, result, battery_state) -> None:
+    def _handle_policy_result(self, action: str, result, battery_state) -> None:
         """Handle policy evaluation result for monitoring."""
         if not result.allowed and result.approval_required:
             logger.warning(
