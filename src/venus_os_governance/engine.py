@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,19 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ApprovalRequestParams:
+    """Parameters for creating an approval request."""
+
+    policy_id: str
+    rule_id: str
+    inverter_action: InverterAction
+    battery_state: BatteryState
+    timeout_seconds: int = 300
+    requested_by: str = "system"
+    metadata: dict[str, Any] | None = None
+
+
 class ApprovalManager:
     """Manages approval requests and decisions."""
 
@@ -31,29 +45,20 @@ class ApprovalManager:
         self._history: list[ApprovalRequest] = []
         self._decision_callbacks: list[callable] = []
 
-    def create_request(
-        self,
-        policy_id: str,
-        rule_id: str,
-        inverter_action: InverterAction,
-        battery_state: BatteryState,
-        timeout_seconds: int = 300,
-        requested_by: str = "system",
-        metadata: dict[str, Any] | None = None,
-    ) -> ApprovalRequest:
+    def create_request(self, params: ApprovalRequestParams) -> ApprovalRequest:
         """Create a new approval request."""
         request = ApprovalRequest(
             id=str(uuid.uuid4()),
-            policy_id=policy_id,
-            rule_id=rule_id,
-            inverter_action=inverter_action,
-            battery_state=battery_state,
-            expires_at=datetime.now() + timedelta(seconds=timeout_seconds),
-            requested_by=requested_by,
-            metadata=metadata or {},
+            policy_id=params.policy_id,
+            rule_id=params.rule_id,
+            inverter_action=params.inverter_action,
+            battery_state=params.battery_state,
+            expires_at=datetime.now() + timedelta(seconds=params.timeout_seconds),
+            requested_by=params.requested_by,
+            metadata=params.metadata or {},
         )
         self._pending[request.id] = request
-        logger.info(f"Created approval request {request.id} for {inverter_action.value}")
+        logger.info(f"Created approval request {request.id} for {params.inverter_action.value}")
         return request
 
     def decide(self, request_id: str, decision: ApprovalDecision) -> bool:
@@ -90,10 +95,7 @@ class ApprovalManager:
     def cleanup_expired(self) -> list[ApprovalRequest]:
         """Remove and return expired requests."""
         now = datetime.now()
-        expired = [
-            req for req in self._pending.values()
-            if req.expires_at < now
-        ]
+        expired = [req for req in self._pending.values() if req.expires_at < now]
         for req in expired:
             req.status = "expired"
             del self._pending[req.id]
@@ -285,12 +287,14 @@ class PolicyEngine:
                 if rule.action == PolicyAction.REQUIRE_APPROVAL and not terminal_action_set:
                     if not approval_requested:
                         approval_req = self.approval_manager.create_request(
-                            policy_id=policy.id,
-                            rule_id=rule.id,
-                            inverter_action=action,
-                            battery_state=battery_state,
-                            timeout_seconds=rule.approval_timeout_seconds,
-                            metadata={"rule_name": rule.name, **(context or {})},
+                            ApprovalRequestParams(
+                                policy_id=policy.id,
+                                rule_id=rule.id,
+                                inverter_action=action,
+                                battery_state=battery_state,
+                                timeout_seconds=rule.approval_timeout_seconds,
+                                metadata={"rule_name": rule.name, **(context or {})},
+                            )
                         )
                         result.approval_required = True
                         result.approval_request = approval_req
@@ -304,18 +308,23 @@ class PolicyEngine:
                     result.alerts.append(f"Alert from rule: {rule.name}")
 
                 # Update action for non-terminal rules (LOG_ONLY, ALERT)
-                if not terminal_action_set and rule.action not in (PolicyAction.DENY, PolicyAction.REQUIRE_APPROVAL):
+                if not terminal_action_set and rule.action not in (
+                    PolicyAction.DENY,
+                    PolicyAction.REQUIRE_APPROVAL,
+                ):
                     result.action = rule.action
 
                 if rule.action == PolicyAction.LOG_ONLY or rule.log_details:
-                    result.log_entries.append({
-                        "rule_id": rule.id,
-                        "rule_name": rule.name,
-                        "action": rule.action.value,
-                        "timestamp": datetime.now().isoformat(),
-                        "battery_soc": battery_state.soc,
-                        "details": rule.log_details,
-                    })
+                    result.log_entries.append(
+                        {
+                            "rule_id": rule.id,
+                            "rule_name": rule.name,
+                            "action": rule.action.value,
+                            "timestamp": datetime.now().isoformat(),
+                            "battery_soc": battery_state.soc,
+                            "details": rule.log_details,
+                        }
+                    )
 
         # Log to event logger if available
         if self.event_logger and result.log_entries:
@@ -366,14 +375,16 @@ class PolicyEngine:
         """Log evaluation result to event logger."""
         try:
             for entry in result.log_entries:
-                entry.update({
-                    "policy_evaluation": True,
-                    "inverter_action": action.value,
-                    "battery_soc": battery_state.soc,
-                    "battery_status": battery_state.status,
-                    "allowed": result.allowed,
-                    "policy_action": result.action.value,
-                })
+                entry.update(
+                    {
+                        "policy_evaluation": True,
+                        "inverter_action": action.value,
+                        "battery_soc": battery_state.soc,
+                        "battery_status": battery_state.status,
+                        "allowed": result.allowed,
+                        "policy_action": result.action.value,
+                    }
+                )
                 self.event_logger.log_event(entry)
         except Exception as e:
             logger.exception(f"Failed to log to event logger: {e}")

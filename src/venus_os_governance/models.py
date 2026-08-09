@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class PolicyAction(StrEnum):
     """Allowed policy actions."""
+
     ALLOW = "allow"
     DENY = "deny"
     REQUIRE_APPROVAL = "require_approval"
@@ -18,6 +19,7 @@ class PolicyAction(StrEnum):
 
 class InverterAction(StrEnum):
     """Inverter actions that can be controlled."""
+
     CHARGE = "charge"
     DISCHARGE = "discharge"
     GRID_FEED_IN = "grid_feed_in"
@@ -31,9 +33,12 @@ class InverterAction(StrEnum):
 
 class SOCThreshold(BaseModel):
     """State of Charge threshold configuration."""
+
     min_soc: int = Field(default=20, ge=0, le=100, description="Minimum SOC percentage")
     max_soc: int = Field(default=100, ge=0, le=100, description="Maximum SOC percentage")
-    critical_min_soc: int = Field(default=10, ge=0, le=100, description="Critical minimum SOC - emergency stop")
+    critical_min_soc: int = Field(
+        default=10, ge=0, le=100, description="Critical minimum SOC - emergency stop"
+    )
     warn_soc: int = Field(default=30, ge=0, le=100, description="Warning SOC level")
 
     @field_validator("max_soc")
@@ -53,6 +58,7 @@ class SOCThreshold(BaseModel):
 
 class BatteryState(BaseModel):
     """Current battery state from D-Bus."""
+
     soc: float = Field(ge=0, le=100)
     voltage: float
     current: float
@@ -67,6 +73,7 @@ class BatteryState(BaseModel):
 
 class PolicyRule(BaseModel):
     """A single policy rule with conditions and actions."""
+
     id: str
     name: str
     description: str
@@ -77,7 +84,8 @@ class PolicyRule(BaseModel):
     inverter_action: InverterAction | None = None
     soc_threshold: SOCThreshold | None = None
     soc_condition: Literal["critical", "min", "max"] | None = Field(
-        default=None, description="Which SOC threshold to check: critical (emergency), min (lower limit), max (upper limit)"
+        default=None,
+        description="Which SOC threshold to check: critical (emergency), min (lower limit), max (upper limit)",
     )
     battery_state_conditions: dict[str, Any] = Field(default_factory=dict)
     time_conditions: dict[str, Any] = Field(default_factory=dict)
@@ -99,6 +107,7 @@ class PolicyRule(BaseModel):
 
 class Policy(BaseModel):
     """Complete policy with multiple rules."""
+
     id: str
     name: str
     description: str
@@ -113,7 +122,8 @@ class Policy(BaseModel):
     def get_applicable_rules(self, action: InverterAction) -> list[PolicyRule]:
         """Get rules applicable to an action, sorted by priority."""
         applicable = [
-            r for r in self.rules
+            r
+            for r in self.rules
             if r.enabled and (r.inverter_action is None or r.inverter_action == action)
         ]
         return sorted(applicable, key=lambda r: r.priority)
@@ -121,6 +131,7 @@ class Policy(BaseModel):
 
 class ApprovalRequest(BaseModel):
     """Approval request for policy actions requiring human/integeration approval."""
+
     id: str
     policy_id: str
     rule_id: str
@@ -138,6 +149,7 @@ class ApprovalRequest(BaseModel):
 
 class ApprovalDecision(BaseModel):
     """Decision on an approval request."""
+
     request_id: str
     decision: Literal["approve", "deny"]
     decided_by: str
@@ -147,6 +159,7 @@ class ApprovalDecision(BaseModel):
 
 class PolicyEvaluationResult(BaseModel):
     """Result of evaluating a policy against a request."""
+
     allowed: bool
     action: PolicyAction
     matched_rules: list[PolicyRule] = Field(default_factory=list)

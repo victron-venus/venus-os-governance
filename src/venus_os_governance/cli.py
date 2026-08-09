@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvaluateParams:
     """Parameters for policy evaluation."""
+
     action: str
     soc: float
     voltage: float = 48.0
@@ -74,14 +75,16 @@ def _evaluate_policy(params: EvaluateParams) -> None:
         console.print(table)
 
     if result.approval_required and result.approval_request:
-        console.print(Panel(
-            f"[bold]Approval Required[/bold]\n"
-            f"Request ID: {result.approval_request.id}\n"
-            f"Timeout: {result.approval_request.expires_at}\n"
-            f"Roles: {', '.join(result.approval_request.approval_roles)}",
-            title="Approval Request",
-            border_style="yellow",
-        ))
+        console.print(
+            Panel(
+                f"[bold]Approval Required[/bold]\n"
+                f"Request ID: {result.approval_request.id}\n"
+                f"Timeout: {result.approval_request.expires_at}\n"
+                f"Roles: {', '.join(result.approval_request.approval_roles)}",
+                title="Approval Request",
+                border_style="yellow",
+            )
+        )
 
     if result.alerts:
         for alert in result.alerts:
@@ -232,25 +235,10 @@ def init(ctx: click.Context) -> None:
     default="idle",
 )
 @click.pass_context
-def evaluate(
-    ctx: click.Context,
-    action: str,
-    soc: float,
-    voltage: float,
-    current: float,
-    power: float,
-    status: str,
-) -> None:
+def evaluate(ctx: click.Context, **kwargs) -> None:
     """Evaluate a policy for a given action and battery state."""
     _ = ctx
-    params = EvaluateParams(
-        action=action,
-        soc=soc,
-        voltage=voltage,
-        current=current,
-        power=power,
-        status=status,
-    )
+    params = EvaluateParams(**kwargs)
     _evaluate_policy(params)
 
 
@@ -375,15 +363,17 @@ def list_policies(ctx: click.Context) -> None:
         return
 
     for policy in policies:
-        console.print(Panel(
-            f"[bold]{policy.name}[/bold] ({policy.id})\n"
-            f"Version: {policy.version}\n"
-            f"Enabled: {policy.enabled}\n"
-            f"Rules: {len(policy.rules)}\n"
-            f"Default Action: {policy.default_action.value}",
-            title=f"Policy: {policy.id}",
-            border_style="blue",
-        ))
+        console.print(
+            Panel(
+                f"[bold]{policy.name}[/bold] ({policy.id})\n"
+                f"Version: {policy.version}\n"
+                f"Enabled: {policy.enabled}\n"
+                f"Rules: {len(policy.rules)}\n"
+                f"Default Action: {policy.default_action.value}",
+                title=f"Policy: {policy.id}",
+                border_style="blue",
+            )
+        )
 
         if policy.rules:
             table = Table(title="Rules")

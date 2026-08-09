@@ -1,0 +1,75 @@
+# Venus OS Governance - Docker Compose
+
+version: '3.8'
+
+services:
+  governance:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: venus-os-governance
+    restart: unless-stopped
+    # Required for D-Bus access on Venus OS / Cerbo GX
+    pid: host
+    ipc: host
+    network_mode: host
+    privileged: true
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - /var/lib/dbus-event-log:/var/lib/dbus-event-log
+      - ./config/policies:/app/config/policies:ro
+    environment:
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+      - POLICY_DIR=/app/config/policies
+      - EVENT_DB_PATH=/var/lib/dbus-event-log/events.db
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_TOPIC_PREFIX=venus/governance
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mosquitto
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0@sha256:5b8b5c8d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3
+    container_name: governance-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  dbus-event-log:
+    image: ghcr.io/victron-venus/dbus-event-log:latest
+    container_name: governance-dbus-event-log
+    restart: unless-stopped
+    pid: host
+    ipc: host
+    network_mode: host
+    privileged: true
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - dbus_event_log_data:/var/lib/dbus-event-log
+    environment:
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+      - EVENT_DB_PATH=/var/lib/dbus-event-log/events.db
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+
+volumes:
+  mosquitto_data:
+  mosquitto_logs:
+  dbus_event_log_data:

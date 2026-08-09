@@ -1,0 +1,165 @@
+# Venus OS Governance - Example Policy Configuration
+#
+# This file demonstrates the policy configuration format.
+# Copy this to config/policies/ and customize for your installation.
+#
+# Policy rules are evaluated in priority order (lower = higher priority).
+# The first terminal action (DENY, REQUIRE_APPROVAL) wins unless overridden.
+
+id: "default-safety"
+name: "Default Safety Policy"
+description: "Default safety policies for Venus OS inverter control"
+version: "1.0.0"
+enabled: true
+default_action: "allow"
+metadata:
+  author: "venus-os-governance"
+  created: "2026-08-01"
+
+rules:
+  # Emergency stop - highest priority (1 = highest)
+  - id: "critical-soc-emergency-stop"
+    name: "Critical SOC Emergency Stop"
+    description: "Emergency stop all discharge at critical SOC (10%)"
+    enabled: true
+    priority: 1
+    inverter_action: "discharge"
+    soc_threshold:
+      min_soc: 20
+      max_soc: 100
+      critical_min_soc: 10
+      warn_soc: 30
+    soc_condition: "critical"
+    action: "deny"
+    tags: ["safety", "emergency"]
+
+  # SOC lower limit - require approval for discharge below 20%
+  - id: "no-discharge-below-20"
+    name: "No Discharge Below 20% SOC"
+    description: "Prevent battery discharge below 20% SOC without explicit approval"
+    enabled: true
+    priority: 10
+    inverter_action: "discharge"
+    soc_threshold:
+      min_soc: 20
+      max_soc: 100
+      critical_min_soc: 10
+      warn_soc: 30
+    soc_condition: "min"
+    action: "require_approval"
+    approval_required: true
+    approval_roles: ["operator", "admin"]
+    approval_timeout_seconds: 300
+    tags: ["safety", "soc-limit"]
+
+  # SOC upper limit - deny charge above 100%
+  - id: "no-charge-above-100"
+    name: "No Charge Above 100% SOC"
+    description: "Prevent battery charge above 100% SOC"
+    enabled: true
+    priority: 10
+    inverter_action: "charge"
+    soc_threshold:
+      min_soc: 20
+      max_soc: 100
+      critical_min_soc: 10
+      warn_soc: 30
+    soc_condition: "max"
+    action: "deny"
+    tags: ["safety", "soc-limit"]
+
+  # External control gate - all external control changes require admin approval
+  - id: "external-control-gate"
+    name: "External Control Gate"
+    description: "All external control changes require approval"
+    enabled: true
+    priority: 20
+    inverter_action: "external_control"
+    action: "require_approval"
+    approval_required: true
+    approval_roles: ["admin"]
+    approval_timeout_seconds: 600
+    tags: ["external-control", "security"]
+
+  # Grid feed-in limit - require operator approval for grid feed-in
+  - id: "grid-feed-in-limit"
+    name: "Grid Feed-in Limit"
+    description: "Require approval for grid feed-in above configured limit"
+    enabled: true
+    priority: 50
+    inverter_action: "grid_feed_in"
+    action: "require_approval"
+    approval_required: true
+    approval_roles: ["operator"]
+    approval_timeout_seconds: 600
+    tags: ["grid", "limit"]
+
+  # Time-based restriction: Night mode - no grid feed-in 22:00-06:00
+  - id: "night-mode-grid-restriction"
+    name: "Night Mode Grid Feed-in Restriction"
+    description: "Disable grid feed-in during night hours (22:00-06:00)"
+    enabled: true
+    priority: 30
+    inverter_action: "grid_feed_in"
+    time_conditions:
+      active_hours_start: "22:00"
+      active_hours_end: "06:00"
+      timezone: "UTC"  # Change to your local timezone
+    action: "deny"
+    tags: ["grid", "time-based", "night-mode"]
+
+  # Temperature guard - pause charging above 45°C
+  - id: "temperature-charge-guard"
+    name: "High Temperature Charge Guard"
+    description: "Pause battery charging when temperature exceeds 45°C"
+    enabled: true
+    priority: 15
+    inverter_action: "charge"
+    battery_state_conditions:
+      temperature_max: 45.0
+    action: "deny"
+    tags: ["safety", "temperature"]
+
+  # Max discharge rate limit - require approval above 70A
+  - id: "max-discharge-rate"
+    name: "Max Discharge Rate Limit"
+    description: "Require approval for discharge current above 70A"
+    enabled: true
+    priority: 40
+    inverter_action: "discharge"
+    battery_state_conditions:
+      max_discharge_current: 70.0
+    action: "require_approval"
+    approval_required: true
+    approval_roles: ["operator"]
+    approval_timeout_seconds: 300
+    tags: ["safety", "current-limit"]
+
+  # Audit logging - log all actions
+  - id: "log-all-actions"
+    name: "Log All Actions"
+    description: "Log all inverter actions for audit trail"
+    enabled: true
+    priority: 200
+    action: "log_only"
+    log_details:
+      include_battery_state: true
+      include_context: true
+    tags: ["audit", "logging"]
+
+  # Alert on low SOC
+  - id: "low-soc-alert"
+    name: "Low SOC Alert"
+    description: "Send alert when battery SOC drops below 30%"
+    enabled: true
+    priority: 100
+    inverter_action: "discharge"
+    soc_threshold:
+      min_soc: 20
+      max_soc: 100
+      critical_min_soc: 10
+      warn_soc: 30
+    soc_condition: "min"
+    action: "alert"
+    alert_channels: ["mqtt", "log"]
+    tags: ["alert", "soc-monitoring"]

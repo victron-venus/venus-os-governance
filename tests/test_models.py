@@ -110,13 +110,15 @@ class TestApprovalManager:
             power=-480.0,
             status="discharging",
         )
-        request = manager.create_request(
+        from venus_os_governance.engine import ApprovalRequestParams
+        params = ApprovalRequestParams(
             policy_id="test-policy",
             rule_id="test-rule",
             inverter_action=InverterAction.DISCHARGE,
             battery_state=battery_state,
             timeout_seconds=300,
         )
+        request = manager.create_request(params)
         assert request.id is not None
         assert request.policy_id == "test-policy"
         assert request.rule_id == "test-rule"
@@ -132,12 +134,14 @@ class TestApprovalManager:
             power=-480.0,
             status="discharging",
         )
-        request = manager.create_request(
+        from venus_os_governance.engine import ApprovalRequestParams
+        params = ApprovalRequestParams(
             policy_id="test-policy",
             rule_id="test-rule",
             inverter_action=InverterAction.DISCHARGE,
             battery_state=battery_state,
         )
+        request = manager.create_request(params)
         from venus_os_governance.models import ApprovalDecision
         decision = ApprovalDecision(
             request_id=request.id,
@@ -158,12 +162,14 @@ class TestApprovalManager:
             power=-480.0,
             status="discharging",
         )
-        request = manager.create_request(
+        from venus_os_governance.engine import ApprovalRequestParams
+        params = ApprovalRequestParams(
             policy_id="test-policy",
             rule_id="test-rule",
             inverter_action=InverterAction.DISCHARGE,
             battery_state=battery_state,
         )
+        request = manager.create_request(params)
         from venus_os_governance.models import ApprovalDecision
         decision = ApprovalDecision(
             request_id=request.id,

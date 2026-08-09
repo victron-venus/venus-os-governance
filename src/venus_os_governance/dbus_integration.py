@@ -82,9 +82,7 @@ class VenusDBusClient:
                 self._battery_path,
                 "/",
             )
-            battery_iface = proxy.get_interface(
-                "com.victronenergy.Battery"
-            )
+            battery_iface = proxy.get_interface("com.victronenergy.Battery")
 
             # Get battery properties
             soc = await battery_iface.call_get_soc()
@@ -123,7 +121,9 @@ class VenusDBusClient:
                 status=str(status).lower(),
                 dvcc_enabled=bool(dvcc_enabled),
                 max_charge_current=float(max_charge_current) if max_charge_current else None,
-                max_discharge_current=float(max_discharge_current) if max_discharge_current else None,
+                max_discharge_current=float(max_discharge_current)
+                if max_discharge_current
+                else None,
             )
         except Exception as e:
             logger.exception(f"Failed to get battery state: {e}")
@@ -257,9 +257,7 @@ class DbusMonitor:
                 battery_state,
             )
             if not result.allowed and result.approval_required:
-                logger.warning(
-                    f"Charge requires approval: {result.reason}"
-                )
+                logger.warning(f"Charge requires approval: {result.reason}")
 
         # Check SOC warnings
         if battery_state.soc <= 30:

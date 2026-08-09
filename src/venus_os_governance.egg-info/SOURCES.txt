@@ -1,3 +1,5 @@
+LICENSE
+README.md
 pyproject.toml
 src/venus_os_governance/__init__.py
 src/venus_os_governance/cli.py
