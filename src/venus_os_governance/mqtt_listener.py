@@ -203,6 +203,7 @@ class MQTTListener:
                 logger.warning("Failed to get battery state from D-Bus: %s", e)
 
         from .models import BatteryState
+
         battery_state = (
             BatteryState(**battery_state_dict)
             if battery_state_dict
@@ -402,13 +403,9 @@ class GovernanceMQTTDaemon:
                 battery_state,
             )
             if result.action.value == "deny":
-                logger.critical(
-                    "Critical SOC emergency stop triggered: %s%%", battery_state.soc
-                )
+                logger.critical("Critical SOC emergency stop triggered: %s%%", battery_state.soc)
 
-    async def _handle_policy_result(
-        self, action: str, result, battery_state
-    ) -> None:
+    async def _handle_policy_result(self, action: str, result, battery_state) -> None:
         """Handle policy evaluation result for monitoring."""
         if not result.allowed and result.approval_required:
             logger.warning(
@@ -418,19 +415,21 @@ class GovernanceMQTTDaemon:
                 result.approval_request.id if result.approval_request else "N/A",
             )
             if self.event_logger:
-                self.event_logger.log_event({
-                    "event_type": "policy_monitor",
-                    "policy_id": self.policy_engine._default_policy.id
-                    if self.policy_engine._default_policy
-                    else "unknown",
-                    "inverter_action": action,
-                    "battery_soc": battery_state.soc,
-                    "battery_status": battery_state.status,
-                    "allowed": result.allowed,
-                    "policy_action": result.action.value,
-                    "approval_required": result.approval_required,
-                    "approval_request_id": result.approval_request.id
-                    if result.approval_request
-                    else None,
-                    "details": {"monitor": True, "action": action},
-                })
+                self.event_logger.log_event(
+                    {
+                        "event_type": "policy_monitor",
+                        "policy_id": self.policy_engine._default_policy.id
+                        if self.policy_engine._default_policy
+                        else "unknown",
+                        "inverter_action": action,
+                        "battery_soc": battery_state.soc,
+                        "battery_status": battery_state.status,
+                        "allowed": result.allowed,
+                        "policy_action": result.action.value,
+                        "approval_required": result.approval_required,
+                        "approval_request_id": result.approval_request.id
+                        if result.approval_request
+                        else None,
+                        "details": {"monitor": True, "action": action},
+                    }
+                )

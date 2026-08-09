@@ -1,6 +1,5 @@
 """Tests for Venus OS Governance."""
 
-
 import pytest
 
 from venus_os_governance.engine import ApprovalManager, PolicyEngine
@@ -111,6 +110,7 @@ class TestApprovalManager:
             status="discharging",
         )
         from venus_os_governance.engine import ApprovalRequestParams
+
         params = ApprovalRequestParams(
             policy_id="test-policy",
             rule_id="test-rule",
@@ -135,6 +135,7 @@ class TestApprovalManager:
             status="discharging",
         )
         from venus_os_governance.engine import ApprovalRequestParams
+
         params = ApprovalRequestParams(
             policy_id="test-policy",
             rule_id="test-rule",
@@ -143,6 +144,7 @@ class TestApprovalManager:
         )
         request = manager.create_request(params)
         from venus_os_governance.models import ApprovalDecision
+
         decision = ApprovalDecision(
             request_id=request.id,
             decision="approve",
@@ -163,6 +165,7 @@ class TestApprovalManager:
             status="discharging",
         )
         from venus_os_governance.engine import ApprovalRequestParams
+
         params = ApprovalRequestParams(
             policy_id="test-policy",
             rule_id="test-rule",
@@ -171,6 +174,7 @@ class TestApprovalManager:
         )
         request = manager.create_request(params)
         from venus_os_governance.models import ApprovalDecision
+
         decision = ApprovalDecision(
             request_id=request.id,
             decision="deny",
@@ -265,6 +269,7 @@ class TestEventLogger:
     def test_log_event(self, tmp_path):
         """Test logging an event."""
         from venus_os_governance.event_logger import EventLogger
+
         db_path = tmp_path / "test.db"
         logger = EventLogger(db_path=str(db_path))
 
