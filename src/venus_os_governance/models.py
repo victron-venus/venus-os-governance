@@ -43,14 +43,14 @@ class SOCThreshold(BaseModel):
 
     @field_validator("max_soc")
     @classmethod
-    def max_soc_greater_than_min(cls, v: int, info) -> int:
+    def max_soc_greater_than_min(cls, v: int, info: Any) -> int:
         if "min_soc" in info.data and v <= info.data["min_soc"]:
             raise ValueError("max_soc must be greater than min_soc")
         return v
 
     @field_validator("critical_min_soc")
     @classmethod
-    def critical_less_than_min(cls, v: int, info) -> int:
+    def critical_less_than_min(cls, v: int, info: Any) -> int:
         if "min_soc" in info.data and v >= info.data["min_soc"]:
             raise ValueError("critical_min_soc must be less than min_soc")
         return v
@@ -144,6 +144,7 @@ class ApprovalRequest(BaseModel):
     approved_by: str | None = None
     approved_at: datetime | None = None
     reason: str | None = None
+    approval_roles: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

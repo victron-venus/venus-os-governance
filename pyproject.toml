@@ -53,7 +53,7 @@ select = ["E", "F", "I", "UP", "W", "C90", "T20", "SIM", "DTZ", "T10", "ISC", "P
 ignore = [
     "S101", "A001", "A002", "A003", "T201", "T203", "SLF001", "RUF002",
     "ANN201", "ANN204", "ANN001", "ARG001", "TRY400", "TRY401", "TRY003", "TRY300",
-    "PLC0415", "PLR2004", "PLR0913", "UP042",
+    "PLC0415", "PLR2004", "PLR0913", "PLR0917", "UP042",
     "SIM105", "F541", "W292", "DTZ005", "C901", "PTH123", "E501",
 ]
 fixable = ["A", "B", "C90", "C4", "COM", "DTZ", "E", "ERA", "F", "I", "ICN", "ISC", "NPY", "PIE", "PL", "PT", "PTH", "Q", "RSE", "RUF", "RET", "SIM", "T10", "TD", "TRY", "UP", "W"]

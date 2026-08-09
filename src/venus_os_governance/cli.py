@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import click
-import yaml
+import yaml  # type: ignore[import-untyped]
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -51,7 +51,7 @@ def _evaluate_policy(params: EvaluateParams) -> None:
         voltage=params.voltage,
         current=params.current,
         power=params.power,
-        status=params.status,
+        status=params.status,  # type: ignore[arg-type]
     )
 
     result = engine.evaluate(InverterAction(params.action), battery_state)
@@ -235,10 +235,20 @@ def init(ctx: click.Context) -> None:
     default="idle",
 )
 @click.pass_context
-def evaluate(ctx: click.Context, **kwargs) -> None:
+def evaluate(
+    ctx: click.Context,
+    action: str,
+    soc: float,
+    voltage: float,
+    current: float,
+    power: float,
+    status: str,
+) -> None:
     """Evaluate a policy for a given action and battery state."""
     _ = ctx
-    params = EvaluateParams(**kwargs)
+    params = EvaluateParams(
+        action=action, soc=soc, voltage=voltage, current=current, power=power, status=status
+    )
     _evaluate_policy(params)
 
 
@@ -299,7 +309,7 @@ def decide(
 
     approval_decision = ApprovalDecision(
         request_id=request_id,
-        decision=decision,
+        decision=decision,  # type: ignore[arg-type]
         decided_by=by,
         reason=reason if reason else None,
     )
