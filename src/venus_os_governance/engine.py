@@ -2,12 +2,13 @@
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from .models import (
     ApprovalDecision,
@@ -40,10 +41,10 @@ class ApprovalRequestParams:
 class ApprovalManager:
     """Manages approval requests and decisions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._pending: dict[str, ApprovalRequest] = {}
         self._history: list[ApprovalRequest] = []
-        self._decision_callbacks: list[callable] = []
+        self._decision_callbacks: list[Callable[[ApprovalRequest, ApprovalDecision], None]] = []
 
     def create_request(self, params: ApprovalRequestParams) -> ApprovalRequest:
         """Create a new approval request."""
@@ -102,7 +103,7 @@ class ApprovalManager:
             self._history.append(req)
         return expired
 
-    def on_decision(self, callback: callable):
+    def on_decision(self, callback: Callable[[ApprovalRequest, ApprovalDecision], None]) -> None:
         """Register a callback for approval decisions."""
         self._decision_callbacks.append(callback)
 
@@ -326,7 +327,6 @@ class PolicyEngine:
                         }
                     )
 
-        # Log to event logger if available
         if self.event_logger and result.log_entries:
             self._log_to_event_logger(result, action, battery_state)
 
@@ -371,8 +371,10 @@ class PolicyEngine:
         result: PolicyEvaluationResult,
         action: InverterAction,
         battery_state: BatteryState,
-    ):
+    ) -> None:
         """Log evaluation result to event logger."""
+        if not self.event_logger:
+            return
         try:
             for entry in result.log_entries:
                 entry.update(

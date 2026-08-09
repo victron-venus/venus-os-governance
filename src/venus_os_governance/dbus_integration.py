@@ -3,10 +3,15 @@
 import asyncio
 import contextlib
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dbus_next import BusType, Message
 from dbus_next.aio import MessageBus
+
+if TYPE_CHECKING:
+    from dbus_next.aio import MessageBus as MessageBusT
+else:
+    MessageBusT = Any
 
 from .engine import PolicyEngine
 from .models import BatteryState, InverterAction
@@ -27,8 +32,8 @@ class VenusDBusClient:
     DVCC = "com.victronenergy.dvcc"
     GRID_METER_PREFIX = "com.victronenergy.grid."
 
-    def __init__(self, bus: MessageBus | None = None):
-        self.bus = bus
+    def __init__(self, bus: MessageBusT | None = None):
+        self.bus: MessageBusT | None = bus
         self._proxy_objects: dict[str, Any] = {}
         self._battery_path: str | None = None
 
@@ -45,7 +50,7 @@ class VenusDBusClient:
 
         # List all services to find battery
         try:
-            reply = await self.bus.call(
+            reply: Message = await self.bus.call(
                 Message(
                     destination="org.freedesktop.DBus",
                     path="/org/freedesktop/DBus",
@@ -81,6 +86,7 @@ class VenusDBusClient:
             proxy = await self.bus.get_proxy_object(
                 self._battery_path,
                 "/",
+                introspection=True,
             )
             battery_iface = proxy.get_interface("com.victronenergy.Battery")
 
@@ -104,6 +110,7 @@ class VenusDBusClient:
                 dvcc_proxy = await self.bus.get_proxy_object(
                     self.DVCC,
                     "/",
+                    introspection=True,
                 )
                 dvcc_iface = dvcc_proxy.get_interface("com.victronenergy.DVCC")
                 dvcc_enabled = await dvcc_iface.call_get_enabled()
@@ -138,6 +145,7 @@ class VenusDBusClient:
             proxy = await self.bus.get_proxy_object(
                 self.INVERTER_PREFIX + "ttyO1",
                 "/",
+                introspection=True,
             )
             inverter_iface = proxy.get_interface("com.victronenergy.VEBus")
             await inverter_iface.call_set_external_control(enabled)
@@ -156,6 +164,7 @@ class VenusDBusClient:
             proxy = await self.bus.get_proxy_object(
                 self.INVERTER_PREFIX + "ttyO1",
                 "/",
+                introspection=True,
             )
             inverter_iface = proxy.get_interface("com.victronenergy.VEBus")
             await inverter_iface.call_set_power_setpoint(power)
@@ -174,6 +183,7 @@ class VenusDBusClient:
             proxy = await self.bus.get_proxy_object(
                 self.DVCC,
                 "/",
+                introspection=True,
             )
             dvcc_iface = proxy.get_interface("com.victronenergy.DVCC")
             await dvcc_iface.call_set_soc_limit(min_soc, max_soc)

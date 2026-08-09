@@ -7,17 +7,18 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 import paho.mqtt.client as mqtt
 
 from .dbus_integration import VenusDBusClient
-from .engine import PolicyEngine
+from .engine import PolicyEngine, PolicyEvaluationResult
 from .event_logger import EventLogger
-from .models import InverterAction
-
-if TYPE_CHECKING:
-    from .models import BatteryState
+from .models import (
+    ApprovalRequest,
+    BatteryState,
+    InverterAction,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,14 @@ class MQTTListener:
             self._client.disconnect()
             logger.info("Governance MQTT disconnected")
 
-    def _on_connect(self, _client, _userdata, _flags, _rc, _properties=None):
+    def _on_connect(
+        self,
+        _client: mqtt.Client,
+        _userdata: Any,
+        _flags: dict[str, Any],
+        _rc: int,
+        _properties: Any | None = None,
+    ) -> None:
         """Connected to broker."""
         self._connected = True
         self._running = True
@@ -139,14 +147,26 @@ class MQTTListener:
         _client.subscribe(state_topic)
         logger.info(f"Subscribed to {state_topic}")
 
-    def _on_disconnect(self, _client, _userdata, rc, _properties=None, _reason_code=None):
+    def _on_disconnect(
+        self,
+        _client: mqtt.Client,
+        _userdata: Any,
+        rc: int,
+        _properties: Any | None = None,
+        _reason_code: int | None = None,
+    ) -> None:
         """Disconnected from broker."""
         self._connected = False
         self._running = False
         if rc != 0:
             logger.warning(f"Governance MQTT disconnected unexpectedly (rc={rc})")
 
-    def _on_message(self, _client, _userdata, msg):
+    def _on_message(
+        self,
+        _client: mqtt.Client,
+        _userdata: Any,
+        msg: mqtt.MQTTMessage,
+    ) -> None:
         """Received message."""
         try:
             topic = msg.topic
@@ -238,7 +258,7 @@ class MQTTListener:
         self,
         inverter_action: InverterAction,
         battery_state: "BatteryState",
-        result,
+        result: PolicyEvaluationResult,
         context: dict[str, Any],
     ) -> None:
         """Log policy evaluation result."""
@@ -273,7 +293,7 @@ class MQTTListener:
         self._client.publish(topic, payload, qos=1)
         logger.info("Forwarded command to %s", topic)
 
-    def _send_approval_response(self, command: InverterCommand, request) -> None:
+    def _send_approval_response(self, command: InverterCommand, request: ApprovalRequest) -> None:
         """Send approval request response."""
         if not self._client or not self._connected:
             return
@@ -420,7 +440,9 @@ class GovernanceMQTTDaemon:
             if result.action.value == "deny":
                 logger.critical("Critical SOC emergency stop triggered: %s%%", battery_state.soc)
 
-    def _handle_policy_result(self, action: str, result, battery_state) -> None:
+    def _handle_policy_result(
+        self, action: str, result: PolicyEvaluationResult, battery_state: BatteryState
+    ) -> None:
         """Handle policy evaluation result for monitoring."""
         if not result.allowed and result.approval_required:
             logger.warning(

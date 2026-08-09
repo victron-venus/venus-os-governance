@@ -4,7 +4,14 @@ import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import paho.mqtt.client as mqtt
+else:
+    mqtt = None
+
+MQTTAvailable = mqtt is not None
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +30,7 @@ class EventLogger:
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.mqtt_topic_prefix = mqtt_topic_prefix
-        self._mqtt_client = None
+        self._mqtt_client: Any = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -96,17 +103,21 @@ class EventLogger:
 
     def _publish_mqtt(self, event: dict[str, Any]) -> None:
         """Publish event to MQTT."""
+        if not MQTTAvailable:
+            return
+
         try:
             import json
 
-            import paho.mqtt.client as mqtt
-
             if self._mqtt_client is None:
+                assert mqtt is not None
                 self._mqtt_client = mqtt.Client()
+                assert self.mqtt_host is not None
                 self._mqtt_client.connect(self.mqtt_host, self.mqtt_port, 60)
 
             topic = f"{self.mqtt_topic_prefix}/events"
             payload = json.dumps(event, default=str)
+            assert self._mqtt_client is not None
             self._mqtt_client.publish(topic, payload)
         except Exception as e:
             logger.exception(f"Failed to publish MQTT event: {e}")
@@ -121,7 +132,7 @@ class EventLogger:
     ) -> list[dict[str, Any]]:
         """Query governance events."""
         query = "SELECT * FROM governance_events WHERE 1=1"
-        params = []
+        params: list[Any] = []
 
         if start_time:
             query += " AND timestamp >= ?"
@@ -155,7 +166,7 @@ class EventLogger:
     ) -> list[dict[str, Any]]:
         """Get approval request events."""
         query = "SELECT * FROM governance_events WHERE event_type = 'approval_request'"
-        params = []
+        params: list[Any] = []
 
         if status:
             query += " AND json_extract(metadata, '$$.status') = ?"
