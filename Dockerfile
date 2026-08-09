@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml uv.lock ./
 
 # Install dependencies with --only-binary to avoid setup script execution
-RUN uv pip install --system --only-binary :all: -e .
+RUN uv pip install --require-hashes --system --only-binary :all: -e .
 
 # Copy source code
 COPY src/ ./src/
