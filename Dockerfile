@@ -8,7 +8,7 @@ WORKDIR /app
 # Install system dependencies and uv in single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     dbus \
-    && pip install --no-cache-dir --only-binary :all: uv \
+    && pip install --require-hashes --no-cache-dir --only-binary :all: uv \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files explicitly (no glob)
