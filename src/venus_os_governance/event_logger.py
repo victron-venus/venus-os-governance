@@ -110,14 +110,17 @@ class EventLogger:
             import json
 
             if self._mqtt_client is None:
-                assert mqtt is not None
+                if not MQTTAvailable:
+                    return
                 self._mqtt_client = mqtt.Client()
-                assert self.mqtt_host is not None
+                if self.mqtt_host is None:
+                    return
                 self._mqtt_client.connect(self.mqtt_host, self.mqtt_port, 60)
 
             topic = f"{self.mqtt_topic_prefix}/events"
             payload = json.dumps(event, default=str)
-            assert self._mqtt_client is not None
+            if self._mqtt_client is None:
+                return
             self._mqtt_client.publish(topic, payload)
         except Exception as e:
             logger.exception(f"Failed to publish MQTT event: {e}")

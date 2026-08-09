@@ -51,8 +51,9 @@ class VenusDBusClient:
             await self.connect()
 
         # List all services to find battery
+        if not self.bus:
+            return None
         try:
-            assert self.bus is not None
             reply = await self.bus.call(
                 Message(
                     destination="org.freedesktop.DBus",
@@ -87,7 +88,8 @@ class VenusDBusClient:
             return None
 
         try:
-            assert self.bus is not None
+            if not self.bus:
+                return None
             proxy = await self.bus.get_proxy_object(  # type: ignore[misc]
                 self._battery_path,
                 "/",
@@ -147,7 +149,8 @@ class VenusDBusClient:
             await self.connect()
 
         try:
-            assert self.bus is not None
+            if not self.bus:
+                return False
             proxy = await self.bus.get_proxy_object(  # type: ignore[misc]
                 self.INVERTER_PREFIX + "ttyO1",
                 "/",
@@ -167,7 +170,8 @@ class VenusDBusClient:
             await self.connect()
 
         try:
-            assert self.bus is not None
+            if not self.bus:
+                return False
             proxy = await self.bus.get_proxy_object(  # type: ignore[misc]
                 self.INVERTER_PREFIX + "ttyO1",
                 "/",
@@ -187,7 +191,8 @@ class VenusDBusClient:
             await self.connect()
 
         try:
-            assert self.bus is not None
+            if not self.bus:
+                return False
             proxy = await self.bus.get_proxy_object(  # type: ignore[misc]
                 self.DVCC,
                 "/",
