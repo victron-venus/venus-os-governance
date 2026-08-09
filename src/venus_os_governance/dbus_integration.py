@@ -9,9 +9,12 @@ from dbus_next import BusType, Message
 from dbus_next.aio import MessageBus
 
 if TYPE_CHECKING:
+    from dbus_next.aio import DBusInterface, ProxyObject
     from dbus_next.aio import MessageBus as MessageBusT
 else:
     MessageBusT = Any
+    ProxyObject = Any
+    DBusInterface = Any
 
 from .engine import PolicyEngine
 from .models import BatteryState, InverterAction
@@ -50,7 +53,8 @@ class VenusDBusClient:
 
         # List all services to find battery
         try:
-            reply: Message = await self.bus.call(
+            assert self.bus is not None
+            reply = await self.bus.call(
                 Message(
                     destination="org.freedesktop.DBus",
                     path="/org/freedesktop/DBus",
@@ -60,12 +64,13 @@ class VenusDBusClient:
                     body=[],
                 )
             )
-            services = reply.body[0] if reply.body else []
-            for service in services:
-                if service.startswith(self.BATTERY_PREFIX):
-                    self._battery_path = service
-                    logger.info(f"Found battery service: {service}")
-                    return service
+            if reply and reply.body:
+                services = reply.body[0]
+                for service in services:
+                    if service.startswith(self.BATTERY_PREFIX):
+                        self._battery_path = service
+                        logger.info(f"Found battery service: {service}")
+                        return service
         except Exception as e:
             logger.exception(f"Failed to discover battery: {e}")
         return None
@@ -83,10 +88,11 @@ class VenusDBusClient:
             return None
 
         try:
+            assert self.bus is not None
             proxy = await self.bus.get_proxy_object(
                 self._battery_path,
                 "/",
-                introspection=True,
+                introspection=None,
             )
             battery_iface = proxy.get_interface("com.victronenergy.Battery")
 
@@ -110,7 +116,7 @@ class VenusDBusClient:
                 dvcc_proxy = await self.bus.get_proxy_object(
                     self.DVCC,
                     "/",
-                    introspection=True,
+                    introspection=None,
                 )
                 dvcc_iface = dvcc_proxy.get_interface("com.victronenergy.DVCC")
                 dvcc_enabled = await dvcc_iface.call_get_enabled()
@@ -125,7 +131,7 @@ class VenusDBusClient:
                 current=float(current),
                 power=float(power),
                 temperature=float(temperature) if temperature else None,
-                status=str(status).lower(),
+                status=str(status).lower(),  # type: ignore[arg-type]
                 dvcc_enabled=bool(dvcc_enabled),
                 max_charge_current=float(max_charge_current) if max_charge_current else None,
                 max_discharge_current=float(max_discharge_current)
@@ -142,10 +148,11 @@ class VenusDBusClient:
             await self.connect()
 
         try:
+            assert self.bus is not None
             proxy = await self.bus.get_proxy_object(
                 self.INVERTER_PREFIX + "ttyO1",
                 "/",
-                introspection=True,
+                introspection=None,
             )
             inverter_iface = proxy.get_interface("com.victronenergy.VEBus")
             await inverter_iface.call_set_external_control(enabled)
@@ -161,10 +168,11 @@ class VenusDBusClient:
             await self.connect()
 
         try:
+            assert self.bus is not None
             proxy = await self.bus.get_proxy_object(
                 self.INVERTER_PREFIX + "ttyO1",
                 "/",
-                introspection=True,
+                introspection=None,
             )
             inverter_iface = proxy.get_interface("com.victronenergy.VEBus")
             await inverter_iface.call_set_power_setpoint(power)
@@ -180,10 +188,11 @@ class VenusDBusClient:
             await self.connect()
 
         try:
+            assert self.bus is not None
             proxy = await self.bus.get_proxy_object(
                 self.DVCC,
                 "/",
-                introspection=True,
+                introspection=None,
             )
             dvcc_iface = proxy.get_interface("com.victronenergy.DVCC")
             await dvcc_iface.call_set_soc_limit(min_soc, max_soc)
