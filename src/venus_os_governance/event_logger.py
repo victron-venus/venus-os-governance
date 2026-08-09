@@ -110,8 +110,6 @@ class EventLogger:
             import json
 
             if self._mqtt_client is None:
-                if not MQTTAvailable:
-                    return
                 self._mqtt_client = mqtt.Client()
                 if self.mqtt_host is None:
                     return
