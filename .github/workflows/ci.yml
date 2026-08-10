@@ -30,7 +30,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv pip install --system --no-build -e ".[dev]"
 
       - name: Run ruff (lint)
         run: |
@@ -67,7 +67,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv pip install --system --no-build -e ".[dev]"
 
       - name: Run pytest
         run: |
