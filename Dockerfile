@@ -5,20 +5,21 @@ FROM python@sha256:d657ab0ade19f404a6ccc883ab399540de667aff751748ce23c07330c5a89
 
 WORKDIR /app
 
-# Install system dependencies and uv in single layer
+# Install system dependencies and uv (pinned version) in single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     dbus \
-    && pip install --no-cache-dir --only-binary :all: uv \
+    && pip install --no-cache-dir --only-binary :all: "uv==0.7.13" \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files explicitly (no glob)
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies with --only-binary to avoid setup script execution
-RUN uv pip install --require-hashes --system --only-binary :all: -e .
+# Install dependencies with hashes (external deps only, not editable package)
+RUN uv pip install --require-hashes --system --only-binary :all: .
 
-# Copy source code
+# Copy source code and install local package without build isolation (no setup.py execution)
 COPY src/ ./src/
+RUN uv pip install --system --no-build -e .
 
 # Create config directory and copy example policy
 RUN mkdir -p /app/config/policies \
