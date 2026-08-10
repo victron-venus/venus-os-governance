@@ -30,19 +30,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --frozen --all-extras
+          uv sync --frozen --all-extras --no-build
 
       - name: Run ruff (lint)
         run: |
-          uv run --frozen ruff check src/
+          uv run --frozen --no-build ruff check src/
 
       - name: Run ruff (format)
         run: |
-          uv run --frozen ruff format --check src/
+          uv run --frozen --no-build ruff format --check src/
 
       - name: Run mypy
         run: |
-          uv run --frozen mypy src/
+          uv run --frozen --no-build mypy src/
 
   test:
     name: Tests
@@ -67,12 +67,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --frozen --all-extras
+          uv sync --frozen --all-extras --no-build
 
       - name: Run pytest
         run: |
           set +e
-          uv run --frozen pytest tests/ -v --tb=short --cov=src/venus_os_governance --cov-report=xml
+          uv run --frozen --no-build pytest tests/ -v --tb=short --cov=src/venus_os_governance --cov-report=xml
           status=$?
           set -e
           if [ $status -eq 0 ] || [ $status -eq 5 ]; then
