@@ -17,10 +17,8 @@ COPY pyproject.toml uv.lock ./
 # Install dependencies with hashes (external deps only, not editable package)
 RUN uv pip install --require-hashes --system --only-binary :all: .
 
-# Copy source code
+# Copy source code and install local package without build isolation (no setup.py execution)
 COPY src/ ./src/
-
-# Install local package without build isolation (no setup.py execution)
 RUN uv pip install --system --no-build -e .
 
 # Create config directory and copy example policy
