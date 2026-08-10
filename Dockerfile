@@ -1,7 +1,7 @@
 # Venus OS Governance - Dockerfile
 
 # Use digest only (pinned base image for reproducibility)
-FROM python@sha256:4b7e9f1f8b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8
+FROM python@sha256:d657ab0ade19f404a6ccc883ab399540de667aff751748ce23c07330c5a89e64
 
 WORKDIR /app
 

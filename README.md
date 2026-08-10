@@ -1,5 +1,11 @@
 # Venus OS Governance
 
+[![CI/CD](https://github.com/victron-venus/venus-os-governance/actions/workflows/ci.yml/badge.svg)](https://github.com/victron-venus/venus-os-governance/actions/workflows/ci.yml)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fvictron--venus%2Fvenus--os--governance-blue)](https://github.com/victron-venus/venus-os-governance/pkgs/container/venus-os-governance)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+[![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=victron-venus_venus-os-governance&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=victron-venus_venus-os-governance)
+
 Policy engine with approval gates for Venus OS — SOC limits, charge/discharge rules, inverter control policies with audit logging via dbus-event-log.
 
 ## Features
