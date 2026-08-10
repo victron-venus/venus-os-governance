@@ -30,7 +30,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --frozen --all-extras --no-build
+          uv sync --frozen --all-extras
 
       - name: Run ruff (lint)
         run: |
@@ -67,7 +67,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --frozen --all-extras --no-build
+          uv sync --frozen --all-extras
 
       - name: Run pytest
         run: |
