@@ -17,10 +17,14 @@ COPY pyproject.toml uv.lock README.md ./
 # Install dependencies from uv.lock (project not installed yet - src not copied)
 RUN uv sync --frozen --no-install-project
 
-# Copy source code and install the project via wheel to avoid running setup.py
+# Copy source code
 COPY src/ ./src/
-RUN uv pip wheel --no-cache-dir -w /tmp/wheels . \
-    && uv pip install --no-cache-dir /tmp/wheels/*.whl
+
+# Build wheel and install it to avoid executing setup scripts during install
+# Build isolation is enabled by default for security
+RUN uv build --wheel -o /tmp/wheels \
+    && uv pip install --no-cache-dir /tmp/wheels/*.whl \
+    && rm -rf /tmp/wheels
 
 # Create config directory and copy example policy
 COPY config/ ./config/
