@@ -12,16 +12,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files explicitly (no glob)
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies from uv.lock (wheels only; local package builds from source)
-RUN uv pip install --system --only-binary :all: --no-binary venus-os-governance .
+# Install dependencies from uv.lock (project not installed yet - src not copied)
+RUN uv sync --frozen --no-install-project
 
-# Copy source code and install local package without build isolation (no setup.py execution)
+# Copy source code and install the project (editable)
 COPY src/ ./src/
-RUN uv pip install --system --no-build -e .
+RUN uv sync --frozen
 
 # Create config directory and copy example policy
+COPY config/ ./config/
 RUN mkdir -p /app/config/policies \
     && cp config/policies.yaml.example /app/config/policies/default-safety.yaml
 
@@ -30,6 +31,8 @@ RUN mkdir -p /app/config/policies \
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
 ENV DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host/var/run/dbus/system_bus_socket
 ENV POLICY_DIR=/app/config/policies
 ENV EVENT_DB_PATH=/var/lib/dbus-event-log/events.db
