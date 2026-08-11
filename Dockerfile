@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy dependency files explicitly (no glob)
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies with hashes (external deps only, not editable package)
-RUN uv pip install --require-hashes --system --only-binary :all: .
+# Install dependencies from uv.lock (wheels only; local package builds from source)
+RUN uv pip install --system --only-binary :all: --no-binary venus-os-governance .
 
 # Copy source code and install local package without build isolation (no setup.py execution)
 COPY src/ ./src/
