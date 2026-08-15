@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 
 import paho.mqtt.client as mqtt
+from paho.mqtt.client import CallbackAPIVersion  # type: ignore[attr-defined]
 
 from .dbus_integration import VenusDBusClient
 from .engine import PolicyEngine, PolicyEvaluationResult
@@ -100,9 +101,9 @@ class MQTTListener:
     def connect(self) -> bool:
         """Connect to MQTT broker."""
         try:
-            self._client = mqtt.Client(
-                mqtt.CallbackAPIVersion.VERSION2,
+            self._client = mqtt.Client(  # type: ignore[call-arg]
                 client_id=self.client_id,
+                callback_api_version=CallbackAPIVersion.VERSION2,
             )
             self._client.on_connect = self._on_connect
             self._client.on_message = self._on_message
@@ -151,31 +152,30 @@ class MQTTListener:
         self,
         _client: mqtt.Client,
         _userdata: Any,
-        rc: int,
+        _rc: int,
         _properties: Any | None = None,
-        _reason_code: int | None = None,
     ) -> None:
         """Disconnected from broker."""
         self._connected = False
         self._running = False
-        if rc != 0:
-            logger.warning(f"Governance MQTT disconnected unexpectedly (rc={rc})")
+        if _rc != 0:
+            logger.warning(f"Governance MQTT disconnected unexpectedly (rc={_rc})")
 
     def _on_message(
         self,
         _client: mqtt.Client,
         _userdata: Any,
-        msg: mqtt.MQTTMessage,
+        _msg: mqtt.MQTTMessage,
     ) -> None:
         """Received message."""
         try:
-            topic = msg.topic
+            topic = _msg.topic
             logger.debug("Received message on %s", topic)
 
             # Parse inverter state for battery tracking
             if topic == f"{self.config.forward_prefix}/state":
                 try:
-                    state = json.loads(msg.payload.decode())
+                    state = json.loads(_msg.payload.decode())
                     self._latest_battery_state = CommandMapper.extract_battery_state(state)
                 except json.JSONDecodeError:
                     pass
@@ -185,11 +185,11 @@ class MQTTListener:
             if topic.startswith(f"{self.config.subscribe_prefix}/cmd/"):
                 cmd = topic.split("/")[-1]
                 payload: dict[str, Any] = {}
-                if msg.payload:
+                if _msg.payload:
                     try:
-                        payload = json.loads(msg.payload.decode())
+                        payload = json.loads(_msg.payload.decode())
                     except json.JSONDecodeError:
-                        payload = {"value": msg.payload.decode()}
+                        payload = {"value": _msg.payload.decode()}
 
                 command = InverterCommand(
                     command=cmd,
