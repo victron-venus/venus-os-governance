@@ -9,9 +9,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, ClassVar
 
+# pylint: disable=import-error
 import paho.mqtt.client as mqtt
 from paho.mqtt.client import CallbackAPIVersion
 
+# pylint: enable=import-error
 from .dbus_integration import VenusDBusClient
 from .engine import PolicyEngine, PolicyEvaluationResult
 from .event_logger import EventLogger
@@ -79,6 +81,7 @@ class MQTTListenerConfig:
 class MQTTListener:
     """MQTT listener that intercepts commands and evaluates them against policies."""
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         policy_engine: PolicyEngine,
@@ -111,10 +114,14 @@ class MQTTListener:
 
             self._client.connect_async(self.config.broker, self.config.port, 60)
             self._client.loop_start()
-            logger.info(f"Governance MQTT connecting to {self.config.broker}:{self.config.port}")
+            logger.info(
+                "Governance MQTT connecting to %s:%s",
+                self.config.broker,
+                self.config.port,
+            )
             return True
-        except Exception as e:
-            logger.exception(f"Governance MQTT connection failed: {e}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Governance MQTT connection failed: %s", e)
             return False
 
     def disconnect(self) -> None:
@@ -141,12 +148,12 @@ class MQTTListener:
         # Subscribe to governance command topics
         topic = f"{self.config.subscribe_prefix}/cmd/#"
         _client.subscribe(topic)
-        logger.info(f"Subscribed to {topic}")
+        logger.info("Subscribed to %s", topic)
 
         # Also subscribe to inverter state for battery state tracking
         state_topic = f"{self.config.forward_prefix}/state"
         _client.subscribe(state_topic)
-        logger.info(f"Subscribed to {state_topic}")
+        logger.info("Subscribed to %s", state_topic)
 
     def _on_disconnect(
         self,
@@ -159,7 +166,7 @@ class MQTTListener:
         self._connected = False
         self._running = False
         if _rc != 0:
-            logger.warning(f"Governance MQTT disconnected unexpectedly (rc={_rc})")
+            logger.warning("Governance MQTT disconnected unexpectedly (rc=%s)", _rc)
 
     def _on_message(
         self,
@@ -201,7 +208,7 @@ class MQTTListener:
                 self._pending_tasks.add(task)
                 task.add_done_callback(self._pending_tasks.discard)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception("Governance MQTT message error: %s", e)
 
     async def _process_command(self, command: InverterCommand) -> None:
@@ -237,15 +244,13 @@ class MQTTListener:
 
     async def _get_battery_state(self) -> "BatteryState":
         """Get current battery state from cache or D-Bus."""
-        from .models import BatteryState
-
         battery_state_dict = self._latest_battery_state.copy()
         if not battery_state_dict and self.dbus_client:
             try:
                 state = await self.dbus_client.get_battery_state()
                 if state:
                     battery_state_dict = state.model_dump()
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.warning("Failed to get battery state from D-Bus: %s", e)
 
         return (
@@ -265,11 +270,10 @@ class MQTTListener:
         if not self.event_logger:
             return
 
+        default_policy = self.policy_engine.default_policy
         log_entry = {
             "event_type": "command_interception",
-            "policy_id": self.policy_engine._default_policy.id
-            if self.policy_engine._default_policy
-            else "unknown",
+            "policy_id": default_policy.id if default_policy else "unknown",
             "inverter_action": inverter_action.value,
             "battery_soc": battery_state.soc,
             "battery_status": battery_state.status,
@@ -299,13 +303,14 @@ class MQTTListener:
             return
 
         topic = f"{self.config.subscribe_prefix}/response/approval_required"
+        reason = f"Policy requires approval: {request.metadata.get('rule_name', 'unknown rule')}"
         response = {
             "original_command": command.command,
             "original_payload": command.payload,
             "request_id": request.id,
             "expires_at": request.expires_at.isoformat(),
             "required_roles": request.approval_roles,
-            "reason": f"Policy requires approval: {request.metadata.get('rule_name', 'unknown rule')}",
+            "reason": reason,
         }
         self._client.publish(topic, json.dumps(response), qos=1)
 
@@ -321,6 +326,10 @@ class MQTTListener:
             "reason": reason or "Denied by policy",
         }
         self._client.publish(topic, json.dumps(response), qos=1)
+
+    def update_battery_state(self, battery_state_dict: dict[str, Any]) -> None:
+        """Update cached battery state from external source (e.g., D-Bus monitor)."""
+        self._latest_battery_state = battery_state_dict
 
 
 @dataclass
@@ -399,7 +408,7 @@ class GovernanceMQTTDaemon:
                 try:
                     await self._check_battery_state()
                     await asyncio.sleep(self.config.poll_interval)
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     logger.exception("Monitor loop error: %s", e)
                     await asyncio.sleep(self.config.poll_interval)
         except asyncio.CancelledError:
@@ -413,7 +422,7 @@ class GovernanceMQTTDaemon:
             return
 
         # Update latest state for MQTT listener
-        self.mqtt_listener._latest_battery_state = battery_state.model_dump()
+        self.mqtt_listener.update_battery_state(battery_state.model_dump())
 
         # Check discharge rules
         if battery_state.status == "discharging":
@@ -452,12 +461,11 @@ class GovernanceMQTTDaemon:
                 result.approval_request.id if result.approval_request else "N/A",
             )
             if self.event_logger:
+                default_policy = self.policy_engine.default_policy
                 self.event_logger.log_event(
                     {
                         "event_type": "policy_monitor",
-                        "policy_id": self.policy_engine._default_policy.id
-                        if self.policy_engine._default_policy
-                        else "unknown",
+                        "policy_id": default_policy.id if default_policy else "unknown",
                         "inverter_action": action,
                         "battery_soc": battery_state.soc,
                         "battery_status": battery_state.status,

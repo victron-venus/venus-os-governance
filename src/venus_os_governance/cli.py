@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import click
-import yaml  # type: ignore[import-untyped]
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -21,6 +21,7 @@ from .models import (
     InverterAction,
     Policy,
     PolicyAction,
+    PolicyEvaluationResult,
     PolicyRule,
     SOCThreshold,
 )
@@ -54,7 +55,7 @@ def _evaluate_policy(params: EvaluateParams) -> None:
         status=params.status,  # type: ignore[arg-type]
     )
 
-    result = engine.evaluate(InverterAction(params.action), battery_state)
+    result: PolicyEvaluationResult = engine.evaluate(InverterAction(params.action), battery_state)
 
     console.print(Panel("[bold]Policy Evaluation Result[/bold]", expand=False))
     console.print(f"Action: {params.action}")
@@ -70,6 +71,7 @@ def _evaluate_policy(params: EvaluateParams) -> None:
         table.add_column("Name", style="white")
         table.add_column("Action", style="yellow")
         table.add_column("Priority", style="magenta")
+        # pylint: disable=not-an-iterable
         for rule in result.matched_rules:
             table.add_row(rule.id, rule.name, rule.action.value, str(rule.priority))
         console.print(table)
@@ -87,6 +89,7 @@ def _evaluate_policy(params: EvaluateParams) -> None:
         )
 
     if result.alerts:
+        # pylint: disable=not-an-iterable
         for alert in result.alerts:
             console.print(f"[yellow]ALERT:[/yellow] {alert}")
 
@@ -117,6 +120,7 @@ def init(ctx: click.Context) -> None:
     policies_dir = config_dir / "policies"
     policies_dir.mkdir(parents=True, exist_ok=True)
 
+    # pylint: disable=duplicate-code
     policy = Policy(
         id="default-safety",
         name="Default Safety Policy",
@@ -234,18 +238,16 @@ def init(ctx: click.Context) -> None:
     type=click.Choice(["charging", "discharging", "idle", "full", "empty"]),
     default="idle",
 )
-@click.pass_context
+# pylint: disable=too-many-arguments
 def evaluate(
-    ctx: click.Context,
     action: str,
     soc: float,
-    voltage: float,
-    current: float,
-    power: float,
-    status: str,
+    voltage: float = 48.0,
+    current: float = 0.0,
+    power: float = 0.0,
+    status: str = "idle",
 ) -> None:
     """Evaluate a policy for a given action and battery state."""
-    _ = ctx
     params = EvaluateParams(
         action=action, soc=soc, voltage=voltage, current=current, power=power, status=status
     )
@@ -327,10 +329,8 @@ def decide(
 @click.option("--host", default="localhost", help="MQTT host for event logger")
 @click.option("--port", default=1883, help="MQTT port")
 @click.option("--interval", default=5.0, help="Poll interval in seconds")
-@click.pass_context
-def monitor(ctx: click.Context, host: str, port: int, interval: float) -> None:
+def monitor(host: str, port: int, interval: float) -> None:
     """Start D-Bus monitoring with policy evaluation."""
-    _ = ctx
 
     async def run_monitor() -> None:
         engine = PolicyEngine()
@@ -340,19 +340,19 @@ def monitor(ctx: click.Context, host: str, port: int, interval: float) -> None:
         dbus_client = VenusDBusClient()
         await dbus_client.connect()
 
-        monitor = DbusMonitor(engine, dbus_client, poll_interval=interval)
+        dbus_monitor = DbusMonitor(engine, dbus_client, poll_interval=interval)
 
         console.print("[green]Starting D-Bus monitor...[/green]")
         console.print("Press Ctrl+C to stop")
 
         try:
-            await monitor.start()
+            await dbus_monitor.start()
             while True:
                 await asyncio.sleep(1)
         except KeyboardInterrupt:
             console.print("\n[yellow]Stopping...[/yellow]")
         finally:
-            await monitor.stop()
+            await dbus_monitor.stop()
             await dbus_client.close()
 
     asyncio.run(run_monitor())
@@ -455,4 +455,4 @@ def events(
 
 
 if __name__ == "__main__":
-    cli()
+    cli(prog_name="venus-governance")  # pylint: disable=no-value-for-parameter

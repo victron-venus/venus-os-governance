@@ -1,14 +1,15 @@
 """Event logger integration with dbus-event-log."""
 
+import json
 import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
+try:
     import paho.mqtt.client as mqtt
-else:
+except ImportError:
     mqtt = None
 
 MQTTAvailable = mqtt is not None
@@ -94,8 +95,8 @@ class EventLogger:
                         str(event.get("metadata", {})),
                     ),
                 )
-        except Exception as e:
-            logger.exception(f"Failed to log event to SQLite: {e}")
+        except sqlite3.Error as e:
+            logger.exception("Failed to log event to SQLite: %s", e)
 
         # Also publish to MQTT if configured
         if self.mqtt_host:
@@ -107,22 +108,22 @@ class EventLogger:
             return
 
         try:
-            import json
-
             if self._mqtt_client is None:
                 self._mqtt_client = mqtt.Client()
                 if self.mqtt_host is None:
                     return
                 self._mqtt_client.connect(self.mqtt_host, self.mqtt_port, 60)
 
-            topic = f"{self.mqtt_topic_prefix}/events"
+            event_type = event.get("event_type", "events")
+            topic = f"{self.mqtt_topic_prefix}/{event_type}"
             payload = json.dumps(event, default=str)
             if self._mqtt_client is None:
                 return
             self._mqtt_client.publish(topic, payload)
-        except Exception as e:
-            logger.exception(f"Failed to publish MQTT event: {e}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Failed to publish MQTT event: %s", e)
 
+    # pylint: disable=too-many-arguments
     def query_events(
         self,
         start_time: datetime | None = None,
@@ -156,8 +157,8 @@ class EventLogger:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(query, params)
                 return [dict(row) for row in cursor.fetchall()]
-        except Exception as e:
-            logger.exception(f"Failed to query events: {e}")
+        except sqlite3.Error as e:
+            logger.exception("Failed to query events: %s", e)
             return []
 
     def get_approval_requests(
@@ -181,6 +182,6 @@ class EventLogger:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(query, params)
                 return [dict(row) for row in cursor.fetchall()]
-        except Exception as e:
-            logger.exception(f"Failed to query approval requests: {e}")
+        except sqlite3.Error as e:
+            logger.exception("Failed to query approval requests: %s", e)
             return []
