@@ -1,4 +1,4 @@
-Metadata-Version: 2.4
+Metadata-Version: 2.1
 Name: venus-os-governance
 Version: 0.1.0
 Summary: Policy engine with approval gates for Venus OS - SOC limits, charge/discharge rules, inverter control policies with audit logging via dbus-event-log
@@ -28,7 +28,6 @@ Provides-Extra: test
 Requires-Dist: pytest>=8.2; extra == "test"
 Requires-Dist: pytest-asyncio>=0.23; extra == "test"
 Requires-Dist: pytest-cov>=4.1; extra == "test"
-Dynamic: license-file
 
 # Venus OS Governance
 

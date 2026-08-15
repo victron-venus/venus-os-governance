@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 
 import paho.mqtt.client as mqtt
-from paho.mqtt.client import CallbackAPIVersion  # type: ignore[attr-defined]
+from paho.mqtt.client import CallbackAPIVersion
 
 from .dbus_integration import VenusDBusClient
 from .engine import PolicyEngine, PolicyEvaluationResult
@@ -101,7 +101,7 @@ class MQTTListener:
     def connect(self) -> bool:
         """Connect to MQTT broker."""
         try:
-            self._client = mqtt.Client(  # type: ignore[call-arg]
+            self._client = mqtt.Client(
                 client_id=self.client_id,
                 callback_api_version=CallbackAPIVersion.VERSION2,
             )
