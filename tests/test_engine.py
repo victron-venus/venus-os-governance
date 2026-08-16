@@ -13,6 +13,7 @@ from venus_os_governance.engine import (
 )
 from venus_os_governance.models import (
     ApprovalDecision,
+    ApprovalRequest,
     BatteryState,
     InverterAction,
     Policy,
@@ -49,7 +50,7 @@ def test_approval_manager_decide_callback_exception(caplog: "LogCaptureFixture")
     )
     request = manager.create_request(params)
 
-    def failing_callback(req: ApprovalManager, dec: ApprovalDecision) -> None:
+    def failing_callback(req: ApprovalRequest, dec: ApprovalDecision) -> None:
         raise ValueError("Callback failed")
 
     manager.on_decision(failing_callback)
