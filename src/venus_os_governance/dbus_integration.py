@@ -228,7 +228,7 @@ class DbusMonitor:
         self.dbus_client = dbus_client
         self.poll_interval = poll_interval
         self._running = False
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """Start monitoring."""

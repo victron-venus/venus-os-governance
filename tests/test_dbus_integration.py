@@ -364,7 +364,7 @@ class TestDbusMonitor:
     @pytest.fixture
     def dbus_client(self) -> "MagicMock":
         """Create a D-Bus client mock."""
-        return MagicMock(spec=VenusDBusClient)
+        return MagicMock()
 
     @pytest.fixture
     def monitor(self, engine: PolicyEngine, dbus_client: VenusDBusClient) -> DbusMonitor:
@@ -402,10 +402,11 @@ class TestDbusMonitor:
         battery_state = BatteryState(
             soc=15.0, voltage=48.0, current=-10.0, power=-480.0, status="discharging"
         )
-        dbus_client.get_battery_state = AsyncMock(return_value=battery_state)
+        with patch.object(dbus_client, "get_battery_state", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = battery_state
 
-        with caplog.at_level(logging.WARNING):
-            await monitor._check_battery_state()
+            with caplog.at_level(logging.WARNING):
+                await monitor._check_battery_state()
 
         assert "Discharge requires approval" in caplog.text
 
@@ -451,10 +452,11 @@ class TestDbusMonitor:
         battery_state = BatteryState(
             soc=100.0, voltage=48.0, current=10.0, power=480.0, status="charging"
         )
-        dbus_client.get_battery_state = AsyncMock(return_value=battery_state)
+        with patch.object(dbus_client, "get_battery_state", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = battery_state
 
-        with caplog.at_level(logging.WARNING):
-            await monitor._check_battery_state()
+            with caplog.at_level(logging.WARNING):
+                await monitor._check_battery_state()
 
         assert "Charge requires approval" in caplog.text
 
@@ -466,10 +468,11 @@ class TestDbusMonitor:
         battery_state = BatteryState(
             soc=25.0, voltage=48.0, current=-10.0, power=-480.0, status="discharging"
         )
-        dbus_client.get_battery_state = AsyncMock(return_value=battery_state)
+        with patch.object(dbus_client, "get_battery_state", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = battery_state
 
-        with caplog.at_level(logging.WARNING):
-            await monitor._check_battery_state()
+            with caplog.at_level(logging.WARNING):
+                await monitor._check_battery_state()
 
         assert "Battery SOC low: 25.0%" in caplog.text
 
@@ -481,26 +484,29 @@ class TestDbusMonitor:
         battery_state = BatteryState(
             soc=15.0, voltage=48.0, current=-10.0, power=-480.0, status="discharging"
         )
-        dbus_client.get_battery_state = AsyncMock(return_value=battery_state)
+        with patch.object(dbus_client, "get_battery_state", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = battery_state
 
-        await monitor._check_battery_state()
+            await monitor._check_battery_state()
 
     @pytest.mark.asyncio
     async def test_check_battery_state_no_battery(
         self, monitor: DbusMonitor, dbus_client: VenusDBusClient
     ) -> None:
         """Test _check_battery_state when no battery state available."""
-        dbus_client.get_battery_state = AsyncMock(return_value=None)
+        with patch.object(dbus_client, "get_battery_state", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = None
 
-        await monitor._check_battery_state()
+            await monitor._check_battery_state()
 
     @pytest.mark.asyncio
     async def test_monitor_loop_cancellation(
         self, monitor: DbusMonitor, dbus_client: VenusDBusClient
     ) -> None:
         """Test monitor loop handles cancellation."""
-        dbus_client.get_battery_state = AsyncMock(return_value=None)
-        await monitor.start()
+        with patch.object(dbus_client, "get_battery_state", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = None
+            await monitor.start()
 
         assert monitor._task is not None
         monitor._task.cancel()
@@ -518,17 +524,19 @@ class TestDbusMonitor:
         """Test monitor loop handles exceptions and continues."""
         call_count = 0
 
-        async def flaky_get_state() -> None:
+        async def flaky_get_state() -> BatteryState | None:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 raise RuntimeError("DBus error")
+            return None
 
-        dbus_client.get_battery_state = flaky_get_state
-        monitor.poll_interval = 0.01
+        with patch.object(dbus_client, "get_battery_state", new_callable=AsyncMock) as mock_get:
+            mock_get.side_effect = flaky_get_state
+            monitor.poll_interval = 0.01
 
-        await monitor.start()
-        await asyncio.sleep(0.05)
-        await monitor.stop()
+            await monitor.start()
+            await asyncio.sleep(0.05)
+            await monitor.stop()
 
         assert "Monitor loop error" in caplog.text

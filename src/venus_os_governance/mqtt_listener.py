@@ -99,14 +99,14 @@ class MQTTListener:
         self._connected = False
         self._running = False
         self._latest_battery_state: dict[str, Any] = {}
-        self._pending_tasks: set[asyncio.Task] = set()
+        self._pending_tasks: set[asyncio.Task[None]] = set()
 
     def connect(self) -> bool:
         """Connect to MQTT broker."""
         try:
             self._client = mqtt.Client(
-                client_id=self.client_id,
                 callback_api_version=CallbackAPIVersion.VERSION2,
+                client_id=self.client_id,
             )
             self._client.on_connect = self._on_connect
             self._client.on_message = self._on_message
@@ -370,7 +370,7 @@ class GovernanceMQTTDaemon:
             ),
         )
 
-        self._dbus_monitor_task: asyncio.Task | None = None
+        self._dbus_monitor_task: asyncio.Task[None] | None = None
         self._running = False
 
     async def start(self) -> None:
