@@ -362,7 +362,7 @@ class TestDbusMonitor:
         return PolicyEngine()
 
     @pytest.fixture
-    def dbus_client(self) -> VenusDBusClient:
+    def dbus_client(self) -> "MagicMock":
         """Create a D-Bus client mock."""
         return MagicMock(spec=VenusDBusClient)
 
