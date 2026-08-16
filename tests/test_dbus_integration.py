@@ -502,6 +502,7 @@ class TestDbusMonitor:
         dbus_client.get_battery_state = AsyncMock(return_value=None)
         await monitor.start()
 
+        assert monitor._task is not None
         monitor._task.cancel()
         try:
             await monitor._task
