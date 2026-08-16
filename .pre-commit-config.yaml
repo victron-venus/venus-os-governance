@@ -23,3 +23,5 @@ repos:
   rev: v3.2.0
   hooks:
   - id: pylint
+    additional_dependencies: [click, pydantic, pyyaml, rich, dbus-next]
+    files: ^src/venus_os_governance/

@@ -5,18 +5,20 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
+# pylint: disable=import-error
 from dbus_next import BusType, Message
-from dbus_next.aio import MessageBus
+from dbus_next.aio import MessageBus as MessageBusT
 
-if TYPE_CHECKING:
-    from dbus_next.aio import MessageBus as MessageBusT
-    from dbus_next.aio import ProxyObject
-else:
-    MessageBusT = Any
-    ProxyObject = Any
-
+# pylint: enable=import-error
 from .engine import PolicyEngine
 from .models import BatteryState, InverterAction
+
+if TYPE_CHECKING:
+    # pylint: disable=import-error
+    from dbus_next.aio import ProxyObject
+    # pylint: enable=import-error
+else:
+    ProxyObject = Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ class VenusDBusClient:
     async def connect(self) -> None:
         """Connect to system bus."""
         if self.bus is None:
-            self.bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+            self.bus = await MessageBusT(bus_type=BusType.SYSTEM).connect()
         logger.info("Connected to D-Bus system bus")
 
     async def discover_battery(self) -> str | None:
@@ -69,10 +71,10 @@ class VenusDBusClient:
                 for service in services:
                     if service.startswith(self.BATTERY_PREFIX):
                         self._battery_path = service
-                        logger.info(f"Found battery service: {service}")
+                        logger.info("Found battery service: %s", service)
                         return service  # type: ignore[no-any-return]
-        except Exception as e:
-            logger.exception(f"Failed to discover battery: {e}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Failed to discover battery: %s", e)
         return None
 
     async def get_battery_state(self) -> BatteryState | None:
@@ -123,7 +125,7 @@ class VenusDBusClient:
                 dvcc_enabled = await dvcc_iface.call_get_enabled()
                 max_charge_current = await dvcc_iface.call_get_max_charge_current()
                 max_discharge_current = await dvcc_iface.call_get_max_discharge_current()
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
 
             return BatteryState(
@@ -139,8 +141,8 @@ class VenusDBusClient:
                 if max_discharge_current
                 else None,
             )
-        except Exception as e:
-            logger.exception(f"Failed to get battery state: {e}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Failed to get battery state: %s", e)
             return None
 
     async def set_inverter_external_control(self, enabled: bool) -> bool:
@@ -158,10 +160,10 @@ class VenusDBusClient:
             )
             inverter_iface = proxy.get_interface("com.victronenergy.VEBus")
             await inverter_iface.call_set_external_control(enabled)
-            logger.info(f"Set inverter external control: {enabled}")
+            logger.info("Set inverter external control: %s", enabled)
             return True
-        except Exception as e:
-            logger.exception(f"Failed to set external control: {e}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Failed to set external control: %s", e)
             return False
 
     async def set_power_setpoint(self, power: int) -> bool:
@@ -179,10 +181,10 @@ class VenusDBusClient:
             )
             inverter_iface = proxy.get_interface("com.victronenergy.VEBus")
             await inverter_iface.call_set_power_setpoint(power)
-            logger.info(f"Set power setpoint: {power}W")
+            logger.info("Set power setpoint: %sW", power)
             return True
-        except Exception as e:
-            logger.exception(f"Failed to set power setpoint: {e}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Failed to set power setpoint: %s", e)
             return False
 
     async def set_soc_limit(self, min_soc: int, max_soc: int) -> bool:
@@ -200,10 +202,10 @@ class VenusDBusClient:
             )
             dvcc_iface = proxy.get_interface("com.victronenergy.DVCC")
             await dvcc_iface.call_set_soc_limit(min_soc, max_soc)
-            logger.info(f"Set SOC limits: min={min_soc}%, max={max_soc}%")
+            logger.info("Set SOC limits: min=%s%%, max=%s%%", min_soc, max_soc)
             return True
-        except Exception as e:
-            logger.exception(f"Failed to set SOC limits: {e}")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("Failed to set SOC limits: %s", e)
             return False
 
     async def close(self) -> None:
@@ -226,7 +228,7 @@ class DbusMonitor:
         self.dbus_client = dbus_client
         self.poll_interval = poll_interval
         self._running = False
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """Start monitoring."""
@@ -251,8 +253,8 @@ class DbusMonitor:
                 await asyncio.sleep(self.poll_interval)
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.exception(f"Monitor loop error: {e}")
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception("Monitor loop error: %s", e)
                 await asyncio.sleep(self.poll_interval)
 
     async def _check_battery_state(self) -> None:
@@ -269,8 +271,9 @@ class DbusMonitor:
             )
             if not result.allowed and result.approval_required:
                 logger.warning(
-                    f"Discharge requires approval: {result.reason}, "
-                    f"request_id={result.approval_request.id if result.approval_request else 'N/A'}"
+                    "Discharge requires approval: %s, request_id=%s",
+                    result.reason,
+                    result.approval_request.id if result.approval_request else "N/A",
                 )
 
         # Check charge rules
@@ -280,11 +283,11 @@ class DbusMonitor:
                 battery_state,
             )
             if not result.allowed and result.approval_required:
-                logger.warning(f"Charge requires approval: {result.reason}")
+                logger.warning("Charge requires approval: %s", result.reason)
 
         # Check SOC warnings
         if battery_state.soc <= 30:
-            logger.warning(f"Battery SOC low: {battery_state.soc}%")
+            logger.warning("Battery SOC low: %s%%", battery_state.soc)
         if battery_state.soc <= 20:
             self.policy_engine.evaluate(
                 InverterAction.DISCHARGE,
