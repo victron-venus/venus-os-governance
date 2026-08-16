@@ -2,9 +2,13 @@
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from _pytest.logging import LogCaptureFixture
 
 from venus_os_governance.dbus_integration import DbusMonitor, VenusDBusClient
 from venus_os_governance.engine import PolicyEngine
@@ -94,7 +98,9 @@ class TestVenusDBusClient:
             assert client.bus == mock_bus
 
     @pytest.mark.asyncio
-    async def test_discover_battery_exception(self, client: VenusDBusClient, caplog) -> None:
+    async def test_discover_battery_exception(
+        self, client: VenusDBusClient, caplog: "LogCaptureFixture"
+    ) -> None:
         """Test discover_battery handles exceptions."""
         mock_bus = AsyncMock()
         mock_bus.call = AsyncMock(side_effect=RuntimeError("DBus error"))
@@ -203,7 +209,9 @@ class TestVenusDBusClient:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_get_battery_state_exception(self, client: VenusDBusClient, caplog) -> None:
+    async def test_get_battery_state_exception(
+        self, client: VenusDBusClient, caplog: "LogCaptureFixture"
+    ) -> None:
         """Test get_battery_state handles exceptions."""
         mock_bus = AsyncMock()
         mock_bus.get_proxy_object = AsyncMock(side_effect=RuntimeError("Proxy error"))
@@ -239,7 +247,7 @@ class TestVenusDBusClient:
 
     @pytest.mark.asyncio
     async def test_set_inverter_external_control_exception(
-        self, client: VenusDBusClient, caplog
+        self, client: VenusDBusClient, caplog: "LogCaptureFixture"
     ) -> None:
         """Test set_inverter_external_control handles exceptions."""
         mock_bus = AsyncMock()
@@ -274,7 +282,9 @@ class TestVenusDBusClient:
         mock_iface.call_set_power_setpoint.assert_awaited_once_with(1000)
 
     @pytest.mark.asyncio
-    async def test_set_power_setpoint_exception(self, client: VenusDBusClient, caplog) -> None:
+    async def test_set_power_setpoint_exception(
+        self, client: VenusDBusClient, caplog: "LogCaptureFixture"
+    ) -> None:
         """Test set_power_setpoint handles exceptions."""
         mock_bus = AsyncMock()
         client.bus = mock_bus
@@ -308,7 +318,9 @@ class TestVenusDBusClient:
         mock_iface.call_set_soc_limit.assert_awaited_once_with(20, 80)
 
     @pytest.mark.asyncio
-    async def test_set_soc_limit_exception(self, client: VenusDBusClient, caplog) -> None:
+    async def test_set_soc_limit_exception(
+        self, client: VenusDBusClient, caplog: "LogCaptureFixture"
+    ) -> None:
         """Test set_soc_limit handles exceptions."""
         mock_bus = AsyncMock()
         client.bus = mock_bus
@@ -375,7 +387,7 @@ class TestDbusMonitor:
 
         await monitor.stop()
         assert monitor._running is False
-        assert monitor._task is not None
+        assert monitor._task is not None  # type: ignore[unreachable]
 
     @pytest.mark.asyncio
     async def test_stop_not_running(self, monitor: DbusMonitor) -> None:
@@ -384,7 +396,7 @@ class TestDbusMonitor:
 
     @pytest.mark.asyncio
     async def test_check_battery_state_discharge_requires_approval(
-        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog
+        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog: "LogCaptureFixture"
     ) -> None:
         """Test _check_battery_state when discharge requires approval."""
         battery_state = BatteryState(
@@ -399,7 +411,7 @@ class TestDbusMonitor:
 
     @pytest.mark.asyncio
     async def test_check_battery_state_charge_requires_approval(
-        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog
+        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog: "LogCaptureFixture"
     ) -> None:
         """Test _check_battery_state when charge requires approval."""
         from venus_os_governance.models import (
@@ -448,7 +460,7 @@ class TestDbusMonitor:
 
     @pytest.mark.asyncio
     async def test_check_battery_state_soc_low_warnings(
-        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog
+        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog: "LogCaptureFixture"
     ) -> None:
         """Test _check_battery_state logs warning at low SOC."""
         battery_state = BatteryState(
@@ -500,12 +512,12 @@ class TestDbusMonitor:
 
     @pytest.mark.asyncio
     async def test_monitor_loop_exception_handling(
-        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog
+        self, monitor: DbusMonitor, dbus_client: VenusDBusClient, caplog: "LogCaptureFixture"
     ) -> None:
         """Test monitor loop handles exceptions and continues."""
         call_count = 0
 
-        async def flaky_get_state():
+        async def flaky_get_state() -> None:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
