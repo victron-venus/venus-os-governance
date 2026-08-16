@@ -392,6 +392,164 @@ def test_event_logger_get_approval_requests() -> None:
         Path(db_path).unlink()
 
 
+def test_event_logger_query_events_with_filters() -> None:
+    """Test querying events with various filters."""
+    import tempfile
+    from datetime import datetime, timedelta
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        logger = EventLogger(db_path=db_path)
+        logger._mqtt_client = None  # pylint: disable=protected-access
+
+        now = datetime.now()
+        event_data = {
+            "timestamp": now.isoformat(),
+            "event_type": "policy_evaluation",
+            "policy_id": "test-policy",
+            "rule_id": "test-rule",
+            "inverter_action": "charge",
+            "battery_soc": 50.0,
+            "battery_status": "charging",
+            "allowed": 1,
+        }
+        logger.log_event(event_data)
+        logger.log_event(
+            {**event_data, "inverter_action": "discharge", "policy_id": "other-policy"}
+        )
+
+        # Test query with start_time
+        events = logger.query_events(start_time=now - timedelta(hours=1), limit=10)
+        assert len(events) == 2
+
+        # Test query with end_time
+        events = logger.query_events(end_time=now + timedelta(hours=1), limit=10)
+        assert len(events) == 2
+
+        # Test query with policy_id
+        events = logger.query_events(policy_id="test-policy", limit=10)
+        assert len(events) == 1
+        assert events[0]["policy_id"] == "test-policy"
+
+        # Test query with action (inverter_action)
+        events = logger.query_events(action="charge", limit=10)
+        assert len(events) == 1
+        assert events[0]["inverter_action"] == "charge"
+    finally:
+        Path(db_path).unlink()
+
+
+def test_event_logger_log_event_mqtt_not_available() -> None:
+    """Test log_event when MQTT is not available."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        logger = EventLogger(db_path=db_path, mqtt_host="test.host")
+        logger._mqtt_client = None  # pylint: disable=protected-access
+
+        # Patch MQTTAvailable to False
+        import venus_os_governance.event_logger as el_module
+
+        original_mqtt = el_module.MQTTAvailable
+        el_module.MQTTAvailable = False
+        try:
+            event_data = {"event_type": "test", "allowed": 1}
+            logger.log_event(event_data)
+            # Should not raise, just log to DB
+        finally:
+            el_module.MQTTAvailable = original_mqtt
+
+        # Verify event was logged to DB
+        events = logger.query_events(limit=10)
+        assert len(events) == 1
+    finally:
+        Path(db_path).unlink()
+
+
+def test_event_logger_log_event_mqtt_connect_failure() -> None:
+    """Test log_event when MQTT connection fails."""
+    import tempfile
+    from unittest.mock import MagicMock
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        mock_mqtt = MagicMock()
+        mock_mqtt.connect.side_effect = Exception("Connection failed")
+
+        import venus_os_governance.event_logger as el_module
+
+        original_client_class = el_module.mqtt.Client
+        try:
+            if hasattr(el_module, "mqtt") and el_module.mqtt:
+                el_module.mqtt.Client = MagicMock(return_value=mock_mqtt)
+        except AttributeError:
+            pass  # MQTT not available
+
+        try:
+            logger = EventLogger(db_path=db_path, mqtt_host="test.host")
+            event_data = {"event_type": "test", "allowed": 1}
+            logger.log_event(event_data)
+            # Should not raise, MQTT error is caught and logged
+        finally:
+            if hasattr(el_module, "mqtt") and el_module.mqtt:
+                el_module.mqtt.Client = original_client_class
+
+        # Verify event was logged to DB despite MQTT failure
+        events = logger.query_events(limit=10)
+        assert len(events) == 1
+    finally:
+        Path(db_path).unlink()
+
+
+def test_event_logger_get_approval_requests_exception() -> None:
+    """Test get_approval_requests handles database errors."""
+    import tempfile
+    from unittest.mock import patch
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        logger = EventLogger(db_path=db_path)
+        logger._mqtt_client = None  # pylint: disable=protected-access
+
+        # Mock sqlite3.connect to raise an error
+        with patch("venus_os_governance.event_logger.sqlite3.connect") as mock_connect:
+            mock_connect.side_effect = sqlite3.Error("DB error")
+            requests = logger.get_approval_requests(limit=10)
+            assert requests == []
+    finally:
+        Path(db_path).unlink()
+
+
+def test_event_logger_query_events_exception() -> None:
+    """Test query_events handles database errors."""
+    import tempfile
+    from unittest.mock import patch
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        logger = EventLogger(db_path=db_path)
+        logger._mqtt_client = None  # pylint: disable=protected-access
+
+        # Mock sqlite3.connect to raise an error
+        with patch("venus_os_governance.event_logger.sqlite3.connect") as mock_connect:
+            mock_connect.side_effect = sqlite3.Error("DB error")
+            events = logger.query_events(limit=10)
+            assert events == []
+    finally:
+        Path(db_path).unlink()
+
+
 def test_cli_evaluate_with_approval_required() -> None:
     """Test the evaluate command when approval is required."""
     runner = CliRunner()
