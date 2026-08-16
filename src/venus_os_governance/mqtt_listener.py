@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 
 # pylint: disable=import-error
 import paho.mqtt.client as mqtt
-from paho.mqtt.client import CallbackAPIVersion  # type: ignore[attr-defined]
+from paho.mqtt.client import CallbackAPIVersion
 
 # pylint: enable=import-error
 from .dbus_integration import VenusDBusClient
