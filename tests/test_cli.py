@@ -483,19 +483,11 @@ def test_event_logger_log_event_mqtt_connect_failure() -> None:
         mock_mqtt = MagicMock()
         mock_mqtt.connect.side_effect = Exception("Connection failed")
 
-        import venus_os_governance.event_logger as el_module
-
-        with patch.object(el_module, "mqtt", create=True):
-            el_module.mqtt.Client = MagicMock(return_value=mock_mqtt)
-
-            try:
-                logger = EventLogger(db_path=db_path, mqtt_host="test.host")
-                event_data = {"event_type": "test", "allowed": 1}
-                logger.log_event(event_data)
-                # Should not raise, MQTT error is caught and logged
-            finally:
-                if hasattr(el_module, "mqtt") and el_module.mqtt:
-                    delattr(el_module.mqtt, "Client")
+        with patch("venus_os_governance.event_logger.mqtt.Client", return_value=mock_mqtt):
+            logger = EventLogger(db_path=db_path, mqtt_host="test.host")
+            event_data = {"event_type": "test", "allowed": 1}
+            logger.log_event(event_data)
+            # Should not raise, MQTT error is caught and logged
 
         # Verify event was logged to DB despite MQTT failure
         events = logger.query_events(limit=10)

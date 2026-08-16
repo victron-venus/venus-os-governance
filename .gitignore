@@ -44,3 +44,4 @@ logs/
 .coverage
 coverage.xml
 logs
+*.pyc
