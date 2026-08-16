@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 
 # pylint: disable=import-error
 import paho.mqtt.client as mqtt
-from paho.mqtt.client import CallbackAPIVersion
+from paho.mqtt.client import CallbackAPIVersion  # type: ignore[attr-defined]
 
 # pylint: enable=import-error
 from .dbus_integration import VenusDBusClient
@@ -104,7 +104,7 @@ class MQTTListener:
     def connect(self) -> bool:
         """Connect to MQTT broker."""
         try:
-            self._client = mqtt.Client(
+            self._client = mqtt.Client(  # type: ignore[call-arg]
                 client_id=self.client_id,
                 callback_api_version=CallbackAPIVersion.VERSION2,
             )

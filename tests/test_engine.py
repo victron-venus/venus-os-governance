@@ -129,7 +129,7 @@ def test_approval_manager_on_decision() -> None:
 
 def test_policy_engine_no_policy_loaded() -> None:
     """Test evaluate when no policy is loaded returns default allow."""
-    engine = PolicyEngine(policy_dir="/non/existent/dir")
+    engine = PolicyEngine(policy_dir=Path("/non/existent/dir"))
     # Override the _default_policy to None to simulate no policy loaded
     engine.default_policy = None
     battery_state = BatteryState(soc=50.0, voltage=48.0, current=0.0, power=0.0, status="charging")
@@ -452,7 +452,7 @@ def test_policy_engine_load_policies_directory_does_not_exist(caplog: "LogCaptur
     """Test that engine logs warning when policy directory does not
     exist and creates default policies."""
     with caplog.at_level(logging.WARNING):
-        engine = PolicyEngine(policy_dir="/non/existent/dir")
+        engine = PolicyEngine(policy_dir=Path("/non/existent/dir"))
         # load_policies called in __init__
         expected = "Policy directory /non/existent/dir does not exist"
         assert expected in caplog.text
