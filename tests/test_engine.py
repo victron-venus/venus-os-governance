@@ -3,6 +3,7 @@
 import logging
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 from venus_os_governance.engine import (
@@ -21,6 +22,9 @@ from venus_os_governance.models import (
     SOCThreshold,
 )
 
+if TYPE_CHECKING:  # pragma: no cover
+    from _pytest.logging import LogCaptureFixture
+
 
 def test_approval_manager_decide_missing_request() -> None:
     """Test deciding on a non-existent request returns False."""
@@ -33,7 +37,7 @@ def test_approval_manager_decide_missing_request() -> None:
     assert manager.decide("non-existent", decision) is False
 
 
-def test_approval_manager_decide_callback_exception(caplog) -> None:
+def test_approval_manager_decide_callback_exception(caplog: "LogCaptureFixture") -> None:
     """Test that exceptions in decision callbacks are logged."""
     manager = ApprovalManager()
     battery_state = BatteryState(soc=50.0, voltage=48.0, current=0.0, power=0.0, status="charging")
@@ -45,7 +49,7 @@ def test_approval_manager_decide_callback_exception(caplog) -> None:
     )
     request = manager.create_request(params)
 
-    def failing_callback(req, dec):
+    def failing_callback(req: ApprovalManager, dec: ApprovalDecision) -> None:
         raise ValueError("Callback failed")
 
     manager.on_decision(failing_callback)
@@ -322,7 +326,7 @@ def test_policy_engine_log_to_event_logger_logger_none() -> None:
     )
 
 
-def test_policy_engine_log_to_event_logger_exception(caplog) -> None:
+def test_policy_engine_log_to_event_logger_exception(caplog: "LogCaptureFixture") -> None:
     """Test _log_to_event_logger logs exception when event_logger fails."""
     event_logger = MagicMock()
     event_logger.log_event.side_effect = RuntimeError("DB error")
@@ -387,7 +391,7 @@ def test_policy_engine_get_policy() -> None:
     assert engine.get_policy("non-existent") is None
 
 
-def test_policy_engine_loads_policies_from_directory(tmp_path) -> None:
+def test_policy_engine_loads_policies_from_directory(tmp_path: Path) -> None:
     """Test that engine loads policies from a directory containing YAML files."""
     # Create a temporary policy YAML file
     policy_yaml = (
@@ -410,16 +414,9 @@ def test_policy_engine_loads_policies_from_directory(tmp_path) -> None:
     policy_dir.mkdir()
     policy_file = policy_dir / "test.yaml"
     policy_file.write_text(policy_yaml.strip())
-    # Debug
-    print(f"Policy dir: {policy_dir}")
-    print(f"Policy file exists: {policy_file.exists()}")
-    print(f"Policy file content: {policy_file.read_text()}")
-    print(f"Files in policy dir: {list(policy_dir.iterdir())}")
 
     engine = PolicyEngine(policy_dir=policy_dir)
     # load_policies is called in __init__
-    print(f"Engine policies after init: {engine.policies}")
-    print(f"Engine default policy: {engine.default_policy}")
     assert len(engine.policies) == 1
     assert "test-policy" in engine.policies
     policy = engine.policies["test-policy"]
@@ -431,26 +428,18 @@ def test_policy_engine_loads_policies_from_directory(tmp_path) -> None:
     assert engine.default_policy.id == "test-policy"
 
 
-def test_policy_engine_load_policies_warning_when_no_yaml(tmp_path, caplog) -> None:
+def test_policy_engine_load_policies_warning_when_no_yaml(
+    tmp_path: Path, caplog: "LogCaptureFixture"
+) -> None:
     """Test that engine logs warning when policy directory exists but contains no YAML files."""
     # Create an empty directory
     policy_dir = tmp_path / "policies"
     policy_dir.mkdir()
     # No YAML files
 
-    with caplog.at_level(logging.WARNING):
-        engine = PolicyEngine(policy_dir=policy_dir)
-        # load_policies is called in __init__
-        # Should log warning about existence but no policies? Actually, warning
-        # only if directory does not exist.
-        # Let's check: In load_policies, if not
-        # self.policy_dir.exists(): logger.warning(...)
-        # If directory exists but no YAML files, it will not log warning,
-        # but will call _create_default_policies because self._default_policy
-        # remains None. So we expect that _create_default_policies is called,
-        # which logs an info message.
-        # We'll check that default policy is created.
-    # Engine should have created default policies because no policies loaded.
+    engine = PolicyEngine(policy_dir=policy_dir)
+    # load_policies is called in __init__
+    # Should have created default policies because no policies loaded.
     assert len(engine.policies) >= 1
     # At least one default policy should be present
     assert any(p.id == "default-safety" for p in engine.policies.values())
@@ -458,7 +447,7 @@ def test_policy_engine_load_policies_warning_when_no_yaml(tmp_path, caplog) -> N
     assert engine.default_policy.id == "default-safety"
 
 
-def test_policy_engine_load_policies_directory_does_not_exist(caplog) -> None:
+def test_policy_engine_load_policies_directory_does_not_exist(caplog: "LogCaptureFixture") -> None:
     """Test that engine logs warning when policy directory does not
     exist and creates default policies."""
     with caplog.at_level(logging.WARNING):
@@ -473,7 +462,7 @@ def test_policy_engine_load_policies_directory_does_not_exist(caplog) -> None:
     assert engine.default_policy.id == "default-safety"
 
 
-def test_policy_engine_load_policies_yaml_exception(caplog) -> None:
+def test_policy_engine_load_policies_yaml_exception(caplog: "LogCaptureFixture") -> None:
     """Test that engine logs exception when YAML is malformed."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         policy_dir = Path(tmp_dir) / "policies"

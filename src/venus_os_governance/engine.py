@@ -15,7 +15,7 @@ from typing import Any
 try:
     import yaml
 except ImportError:
-    yaml = None
+    yaml = None  # type: ignore[assignment]
 
 from .models import (
     ApprovalDecision,
@@ -143,12 +143,17 @@ class PolicyEngine:
             self._create_default_policies()
             return
 
+        # Type checker doesn't know yaml could be None at runtime (optional dep)
+        try:
+            yaml is None
+        except NameError:
+            logger.error("PyYAML is not installed. Cannot load policy files.")
+            self._create_default_policies()
+            return
+
         for policy_file in self.policy_dir.glob("*.yaml"):
             try:
                 with open(policy_file, encoding="utf-8") as f:
-                    if yaml is None:
-                        logger.error("PyYAML is not installed. Cannot load policy files.")
-                        continue
                     data = yaml.safe_load(f)
                 policy = Policy(**data)
                 self.policies[policy.id] = policy

@@ -10,7 +10,7 @@ from typing import Any
 try:
     import paho.mqtt.client as mqtt
 except ImportError:
-    mqtt = None
+    mqtt = None  # type: ignore[assignment]
 
 MQTTAvailable = mqtt is not None
 
