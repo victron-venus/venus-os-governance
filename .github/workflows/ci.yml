@@ -8,18 +8,13 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  attestations: write
-  id-token: write
 
 jobs:
   ci:
     name: CI
-    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/python-ci.yml@875762362bb31b4899bf02fdf9e835188dc5eb80
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/python-ci.yml@2905949ddbcd833cf2aaf199604fdb6040954f18
     with:
       python-version: '3.12'
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
     name: Build & Push Docker Image

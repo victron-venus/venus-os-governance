@@ -13,4 +13,6 @@ src/venus_os_governance.egg-info/SOURCES.txt
 src/venus_os_governance.egg-info/dependency_links.txt
 src/venus_os_governance.egg-info/requires.txt
 src/venus_os_governance.egg-info/top_level.txt
+tests/test_cli.py
+tests/test_engine.py
 tests/test_models.py

@@ -1,6 +1,11 @@
 """Tests for Venus OS Governance."""
 
+import sys
+from pathlib import Path
+
 import pytest
+
+sys.path.insert(0, "/Users/vmedvedev/victron/venus-os-governance/src")
 
 from venus_os_governance.engine import ApprovalManager, PolicyEngine
 from venus_os_governance.models import (
@@ -16,7 +21,7 @@ from venus_os_governance.models import (
 class TestModels:
     """Test model validation."""
 
-    def test_soc_threshold_valid(self):
+    def test_soc_threshold_valid(self) -> None:
         """Test valid SOC threshold creation."""
         threshold = SOCThreshold(
             min_soc=20,
@@ -27,17 +32,17 @@ class TestModels:
         assert threshold.min_soc == 20
         assert threshold.max_soc == 100
 
-    def test_soc_threshold_invalid_max_less_than_min(self):
+    def test_soc_threshold_invalid_max_less_than_min(self) -> None:
         """Test invalid max_soc less than min_soc."""
         with pytest.raises(ValueError, match="max_soc must be greater than min_soc"):
             SOCThreshold(min_soc=50, max_soc=30)
 
-    def test_soc_threshold_invalid_critical_greater_than_min(self):
+    def test_soc_threshold_invalid_critical_greater_than_min(self) -> None:
         """Test invalid critical_min_soc greater than min_soc."""
         with pytest.raises(ValueError, match="critical_min_soc must be less than min_soc"):
             SOCThreshold(min_soc=20, critical_min_soc=30)
 
-    def test_battery_state_valid(self):
+    def test_battery_state_valid(self) -> None:
         """Test valid battery state creation."""
         state = BatteryState(
             soc=50.0,
@@ -49,7 +54,7 @@ class TestModels:
         assert state.soc == 50.0
         assert state.status == "charging"
 
-    def test_battery_state_invalid_soc(self):
+    def test_battery_state_invalid_soc(self) -> None:
         """Test invalid SOC value."""
         with pytest.raises(ValueError, match="Input should be less than or equal to 100"):
             BatteryState(
@@ -60,7 +65,7 @@ class TestModels:
                 status="charging",
             )
 
-    def test_policy_rule_creation(self):
+    def test_policy_rule_creation(self) -> None:
         """Test policy rule creation."""
         rule = PolicyRule(
             id="test-rule",
@@ -77,7 +82,7 @@ class TestModels:
         assert rule.id == "test-rule"
         assert rule.action == PolicyAction.REQUIRE_APPROVAL
 
-    def test_policy_creation(self):
+    def test_policy_creation(self) -> None:
         """Test policy creation."""
         rule = PolicyRule(
             id="test-rule",
@@ -99,7 +104,7 @@ class TestModels:
 class TestApprovalManager:
     """Test approval manager."""
 
-    def test_create_request(self):
+    def test_create_request(self) -> None:
         """Test creating approval request."""
         manager = ApprovalManager()
         battery_state = BatteryState(
@@ -124,7 +129,7 @@ class TestApprovalManager:
         assert request.rule_id == "test-rule"
         assert request.status == "pending"
 
-    def test_decide_approve(self):
+    def test_decide_approve(self) -> None:
         """Test approving a request."""
         manager = ApprovalManager()
         battery_state = BatteryState(
@@ -154,7 +159,7 @@ class TestApprovalManager:
         assert result is True
         assert request.status == "approved"
 
-    def test_decide_deny(self):
+    def test_decide_deny(self) -> None:
         """Test denying a request."""
         manager = ApprovalManager()
         battery_state = BatteryState(
@@ -188,7 +193,7 @@ class TestApprovalManager:
 class TestPolicyEngine:
     """Test policy engine."""
 
-    def test_default_policy_creation(self):
+    def test_default_policy_creation(self) -> None:
         """Test default safety policy creation."""
         engine = PolicyEngine()
         engine.load_policies()
@@ -197,7 +202,7 @@ class TestPolicyEngine:
         assert policies[0].id == "default-safety"
         assert len(policies[0].rules) == 6
 
-    def test_evaluate_discharge_below_20_requires_approval(self):
+    def test_evaluate_discharge_below_20_requires_approval(self) -> None:
         """Test discharge below 20% SOC requires approval."""
         engine = PolicyEngine()
         engine.load_policies()
@@ -214,7 +219,7 @@ class TestPolicyEngine:
         assert result.approval_required is True
         assert result.action == PolicyAction.REQUIRE_APPROVAL
 
-    def test_evaluate_discharge_above_20_allowed(self):
+    def test_evaluate_discharge_above_20_allowed(self) -> None:
         """Test discharge above 20% SOC is allowed."""
         engine = PolicyEngine()
         engine.load_policies()
@@ -230,7 +235,7 @@ class TestPolicyEngine:
         assert result.allowed is True
         assert result.action == PolicyAction.LOG_ONLY
 
-    def test_evaluate_critical_soc_denied(self):
+    def test_evaluate_critical_soc_denied(self) -> None:
         """Test discharge at critical SOC (10%) is denied."""
         engine = PolicyEngine()
         engine.load_policies()
@@ -246,7 +251,7 @@ class TestPolicyEngine:
         assert result.allowed is False
         assert result.action == PolicyAction.DENY
 
-    def test_evaluate_charge_always_allowed(self):
+    def test_evaluate_charge_always_allowed(self) -> None:
         """Test charge is allowed (unless above 100%)."""
         engine = PolicyEngine()
         engine.load_policies()
@@ -266,7 +271,7 @@ class TestPolicyEngine:
 class TestEventLogger:
     """Test event logger."""
 
-    def test_log_event(self, tmp_path):
+    def test_log_event(self, tmp_path: Path) -> None:
         """Test logging an event."""
         from venus_os_governance.event_logger import EventLogger
 

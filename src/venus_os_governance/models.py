@@ -44,6 +44,7 @@ class SOCThreshold(BaseModel):
     @field_validator("max_soc")
     @classmethod
     def max_soc_greater_than_min(cls, v: int, info: Any) -> int:
+        """Ensure max_soc is greater than min_soc."""
         if "min_soc" in info.data and v <= info.data["min_soc"]:
             raise ValueError("max_soc must be greater than min_soc")
         return v
@@ -51,6 +52,7 @@ class SOCThreshold(BaseModel):
     @field_validator("critical_min_soc")
     @classmethod
     def critical_less_than_min(cls, v: int, info: Any) -> int:
+        """Ensure critical_min_soc is less than min_soc."""
         if "min_soc" in info.data and v >= info.data["min_soc"]:
             raise ValueError("critical_min_soc must be less than min_soc")
         return v
@@ -85,7 +87,10 @@ class PolicyRule(BaseModel):
     soc_threshold: SOCThreshold | None = None
     soc_condition: Literal["critical", "min", "max"] | None = Field(
         default=None,
-        description="Which SOC threshold to check: critical (emergency), min (lower limit), max (upper limit)",
+        description=(
+            "Which SOC threshold to check: critical (emergency), "
+            "min (lower limit), max (upper limit)"
+        ),
     )
     battery_state_conditions: dict[str, Any] = Field(default_factory=dict)
     time_conditions: dict[str, Any] = Field(default_factory=dict)

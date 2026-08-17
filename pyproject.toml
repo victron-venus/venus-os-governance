@@ -24,6 +24,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.10",
     "pre-commit>=3.7",
+    "types-pyyaml>=6.0",
 ]
 test = [
     "pytest>=8.2",
@@ -74,6 +75,7 @@ strict_equality = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unreachable = true
+exclude = ["build"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
